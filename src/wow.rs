@@ -58,7 +58,7 @@ pub fn infer_interface(root: &Path) -> Option<u32> {
                         .split('.')
                         .take(3)
                         .map(|s| s.parse::<u32>())
-                        .collect::<Option<Vec<_>>>()
+                        .collect::<Result<Vec<_>, _>>()
                         .unwrap_or_default();
                     if digits.len() == 3 && digits[0] == 1 && digits[1] >= 50 && digits[2] < 100 {
                         return Some(digits[0] * 10000 + digits[1] * 100 + digits[2]);

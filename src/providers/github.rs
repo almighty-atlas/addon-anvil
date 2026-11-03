@@ -124,7 +124,7 @@ pub async fn latest(cat: &Catalog, project: &str) -> Result<RemoteAddon> {
     // A single explicitly Forever-tagged ZIP is safe to select; a sole generic
     // ZIP still requires a compatible TOC during installation.
     let asset = match (specific.as_slice(), zips.as_slice()) {
-        ([asset], _) => Some(*asset),
+        ([asset], _) => Some(**asset),
         ([], [asset]) => Some(*asset),
         _ => None,
     };
