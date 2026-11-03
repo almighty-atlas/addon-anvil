@@ -275,14 +275,12 @@ fn installed(app: &App) -> Element<'_, Message> {
             Message::ConfirmRemove(item.provider, item.project_id.clone())
         )]
         .spacing(8);
-        if update {
-            if let Some(remote) = latest {
-                buttons = buttons.push(
-                    button("Aktualisieren")
-                        .style(button::primary)
-                        .on_press(Message::UpdateOne(remote.clone())),
-                );
-            }
+        if let Some(remote) = latest.filter(|_| update) {
+            buttons = buttons.push(
+                button("Aktualisieren")
+                    .style(button::primary)
+                    .on_press(Message::UpdateOne(remote.clone())),
+            );
         }
         body = body.push(addon_card(&item.name, &detail, buttons.into()));
         visible += 1;
