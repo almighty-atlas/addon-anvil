@@ -21,7 +21,7 @@ pkgver() {
 build() {
   cd "$srcdir/addon-anvil"
   export CARGO_TARGET_DIR="$srcdir/target"
-  cargo build --release
+  cargo build --release --locked
 }
 
 package() {

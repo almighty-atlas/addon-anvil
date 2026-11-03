@@ -26,13 +26,8 @@ jobs:
         with:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
-      - name: Generate lockfile
-        run: cargo generate-lockfile
-      - name: Record lockfile for reproducible build
-        run: |
-          echo ANVIL_LOCK_BEGIN
-          cat Cargo.lock
-          echo ANVIL_LOCK_END
+      - name: Locked dependencies
+        run: cargo fetch --locked
       - name: Format
         run: cargo fmt --all -- --check
       - name: Clippy
@@ -40,7 +35,7 @@ jobs:
       - name: Test (headless)
         run: cargo test
       - name: Release build
-        run: cargo build --release
+        run: cargo build --release --locked
       - name: Package native executable
         uses: actions/upload-artifact@v4
         with:

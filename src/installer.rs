@@ -1,8 +1,10 @@
 use crate::archive::{self, PackageFolders};
 use crate::config::Paths;
 use crate::error::{AnvilError, Result};
+use crate::fingerprint::{folder_fingerprint, verify_owned};
 use crate::model::{AppConfig, InstallRequest, ManagedAddon, ProviderKind};
 use crate::wow;
+use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -77,6 +79,9 @@ pub fn install_zip(
             && m.provider == request.provider
             && m.project_id == request.project_id
     });
+    if let Some(prior) = old {
+        verify_owned(&addons, prior)?;
+    }
     let new_folders: Vec<String> = folders.iter().map(|(name, _)| name.clone()).collect();
     for folder in &new_folders {
         let dest = guarded_dir(&addons, folder)?;
@@ -109,6 +114,11 @@ pub fn install_zip(
             fs::rename(unpacked_path, guarded_dir(&addons, folder)?)?;
             moved_new.push(folder.clone());
         }
+        let mut folder_hashes = BTreeMap::new();
+        for folder in &new_folders {
+            let path = guarded_dir(&addons, folder)?;
+            folder_hashes.insert(folder.clone(), folder_fingerprint(&path)?);
+        }
         let mut updated = cfg.clone();
         updated.managed.retain(|m| {
             !(m.installation_id == install_id
@@ -122,6 +132,7 @@ pub fn install_zip(
             name: request.name,
             release_id: request.release_id,
             folders: new_folders,
+            folder_hashes,
             project_url: request.project_url,
         });
         paths.save(&updated)?;
@@ -161,6 +172,7 @@ pub fn uninstall(
             m.installation_id == install_id && m.provider == provider && m.project_id == project_id
         })
         .ok_or_else(|| AnvilError::InvalidOperation("Addon ist nicht verwaltet".into()))?;
+    verify_owned(&addons, old)?;
     let temp = tempfile::Builder::new()
         .prefix(".addon-anvil-remove-")
         .tempdir_in(&addons)?;
