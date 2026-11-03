@@ -18,6 +18,7 @@ pub fn theme(_: &App) -> Theme {
             primary: Color::from_rgb8(122, 103, 237),
             success: Color::from_rgb8(77, 193, 155),
             danger: Color::from_rgb8(231, 99, 131),
+            warning: Color::from_rgb8(243, 187, 106),
         },
     )
 }
@@ -53,7 +54,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
             text("WORLD OF WARCRAFT")
                 .size(11)
                 .color(Color::from_rgb8(170, 162, 215)),
-            Space::with_height(22),
+            Space::height(22),
             side_button("Installierte Addons", Page::Installed, app.page),
             side_button("Addons entdecken", Page::Discover, app.page),
             side_button("ZIP installieren", Page::Local, app.page),
@@ -150,7 +151,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
             available_updates(app)
         ))
         .size(12),
-        Space::with_width(Length::Fill),
+        Space::width(Length::Fill),
         text(if app.busy { "Aktiv: " } else { "" }.to_string() + &app.notice).size(12),
     ]
     .spacing(16)
