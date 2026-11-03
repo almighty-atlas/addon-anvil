@@ -18,7 +18,7 @@ Native Rust/iced addon manager for World of Warcraft **Forever** on Linux (Wayla
 - Asynchronous online searches, update checks, single and batch updates.
 - Native dark German UI, no embedded browser.
 
-**Important limitations:** Full-text WoWInterface Forever search is not claimed. Manual folders cannot yet be linked to a provider. Download progress is reported by stage, not byte percentage. Some provider endpoints must be verified with a working credential/network. Ownership recording is currently by folder, not immutable file hashes (see docs/security.md).
+**Important limitations:** Full-text WoWInterface Forever search is not claimed. Manual folders cannot yet be linked to a provider. Download progress is reported by stage, not byte percentage. Some provider endpoints must be verified with a working credential/network. Managed folders include SHA-256 fingerprints to detect external changes and block unsafe updates/removal (see docs/security.md).
 
 ## CachyOS / Arch build
 

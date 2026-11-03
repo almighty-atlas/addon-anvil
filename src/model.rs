@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 pub const SCHEMA_VERSION: u32 = 1;
@@ -46,6 +47,8 @@ pub struct ManagedAddon {
     pub name: String,
     pub release_id: String,
     pub folders: Vec<String>,
+    #[serde(default)]
+    pub folder_hashes: BTreeMap<String, String>,
     pub project_url: String,
 }
 

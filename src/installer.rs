@@ -311,6 +311,26 @@ mod tests {
         );
     }
 
+    #[test]
+    fn externally_changed_owned_folder_cannot_be_deleted_or_overwritten() {
+        let (tmp, paths, cfg, id) = test_game();
+        let zip = tmp.path().join("addon.zip");
+        zip_addon(&zip, "## Version: 1");
+        let cfg = install_zip(&paths, &cfg, &id, &zip, request("1")).unwrap();
+        let toc_path = cfg.selected().unwrap().addons_dir().join("Demo/Demo_Forever.toc");
+        fs::write(&toc_path, "modified externally").unwrap();
+        assert!(matches!(
+            uninstall(&paths, &cfg, &id, ProviderKind::Local, "fixture"),
+            Err(AnvilError::Conflict(_))
+        ));
+        zip_addon(&zip, "## Version: 2");
+        assert!(matches!(
+            install_zip(&paths, &cfg, &id, &zip, request("2")),
+            Err(AnvilError::Conflict(_))
+        ));
+        assert_eq!(fs::read_to_string(toc_path).unwrap(), "modified externally");
+    }
+
     #[cfg(unix)]
     #[test]
     fn reject_symlink_escape() {

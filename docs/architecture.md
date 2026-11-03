@@ -12,7 +12,7 @@
 
 Provider-Abfragen und Downloads laufen asynchron, ZIP-Operationen und Dateisystemscans in spawn_blocking. Kleine Konfigurationsänderungen schreiben atomare JSON-Dateien. Kein Daemon, kein Hintergrundkonto, keine Telemetrie.
 
-Verwaltete Addons werden durch Installation, Provider und Projekt-ID identifiziert. Zugehörige Addon-Unterordner werden explizit hinterlegt; ein Paket mit Modulen wird als eine Einheit behandelt. Nicht zugeordnete manuelle Addons werden ausschließlich gelesen.
+Verwaltete Addons werden durch Installation, Provider und Projekt-ID identifiziert. Zugehörige Addon-Unterordner werden explizit hinterlegt und SHA-256-Fingerprints zur Konflikterkennung gespeichert; ein Paket mit Modulen wird als eine Einheit behandelt. Nicht zugeordnete manuelle Addons werden ausschließlich gelesen.
 
 ## Abgrenzungen
 

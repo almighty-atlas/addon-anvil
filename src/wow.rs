@@ -85,10 +85,10 @@ pub fn scan_candidates() -> Vec<GameInstallation> {
     for steam in [home.join(".steam/steam"), home.join(".local/share/Steam")] {
         if let Ok(vdf) = fs::read_to_string(steam.join("steamapps/libraryfolders.vdf")) {
             for line in vdf.lines() {
-                if line.contains("\"path\"") {
-                    if let Some(path) = line.split('"').nth(3) {
-                        roots.push(PathBuf::from(path).join("steamapps/compatdata"));
-                    }
+                if line.contains("\"path\"")
+                    && let Some(path) = line.split('"').nth(3)
+                {
+                    roots.push(PathBuf::from(path).join("steamapps/compatdata"));
                 }
             }
         }
@@ -97,10 +97,10 @@ pub fn scan_candidates() -> Vec<GameInstallation> {
     let mut seen = HashSet::new();
     for root in roots {
         bounded_scan(&root, 0, &mut 0usize, &mut |path| {
-            if let Ok(game) = validate(path) {
-                if seen.insert(game.id.clone()) {
-                    result.push(game);
-                }
+            if let Ok(game) = validate(path)
+                && seen.insert(game.id.clone())
+            {
+                result.push(game);
             }
         });
     }

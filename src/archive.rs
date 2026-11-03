@@ -118,18 +118,16 @@ fn find_addon_folders(
     if depth > 4 {
         return Ok(());
     }
-    if dir != root {
-        if toc::preferred_toc(dir).is_some() {
-            let name = dir.file_name().and_then(|f| f.to_str()).unwrap_or("");
-            if !valid_folder_name(name) {
-                return Err(AnvilError::UnsafePath(name.into()));
-            }
-            if out.iter().any(|(n, _)| n == name) {
-                return Err(AnvilError::Conflict(format!("Doppelter Ordner {name}")));
-            }
-            out.push((name.into(), dir.to_owned()));
-            return Ok(());
+    if dir != root && toc::preferred_toc(dir).is_some() {
+        let name = dir.file_name().and_then(|f| f.to_str()).unwrap_or("");
+        if !valid_folder_name(name) {
+            return Err(AnvilError::UnsafePath(name.into()));
         }
+        if out.iter().any(|(n, _)| n == name) {
+            return Err(AnvilError::Conflict(format!("Doppelter Ordner {name}")));
+        }
+        out.push((name.into(), dir.to_owned()));
+        return Ok(());
     }
     for child in fs::read_dir(dir)? {
         let child = child?;
