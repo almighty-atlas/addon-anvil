@@ -107,6 +107,9 @@ mod tests {
         let folder = temp.path().join("MyAddon");
         fs::create_dir_all(&folder).unwrap();
         std::os::unix::fs::symlink(temp.path(), folder.join("escape")).unwrap();
-        assert!(matches!(folder_fingerprint(&folder), Err(AnvilError::UnsafePath(_))));
+        assert!(matches!(
+            folder_fingerprint(&folder),
+            Err(AnvilError::UnsafePath(_))
+        ));
     }
 }
