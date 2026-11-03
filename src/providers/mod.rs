@@ -50,26 +50,34 @@ impl Catalog {
             ProviderKind::GitHub => github::latest(self, project_id).await,
             ProviderKind::WoWInterface => wowinterface::latest(self, project_id).await,
             ProviderKind::CurseForge => curseforge::latest(self, project_id).await,
-            ProviderKind::Local => Err(AnvilError::Provider("Lokale ZIPs haben keine Update-Quelle".into())),
+            ProviderKind::Local => Err(AnvilError::Provider(
+                "Lokale ZIPs haben keine Update-Quelle".into(),
+            )),
         }
     }
 
     async fn get<T: DeserializeOwned>(&self, url: &str, key: Option<&str>) -> Result<T> {
         let mut request = self.client.get(url);
-        if let Some(key) = key { request = request.header("x-api-key", key); }
+        if let Some(key) = key {
+            request = request.header("x-api-key", key);
+        }
         let response = request.send().await?;
         let status = response.status();
         if !status.is_success() {
             let reason = match status {
                 StatusCode::TOO_MANY_REQUESTS => "Rate-Limit erreicht",
-                StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => "API-Zugriff verweigert oder Rate-Limit erreicht",
+                StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {
+                    "API-Zugriff verweigert oder Rate-Limit erreicht"
+                }
                 StatusCode::NOT_FOUND => "Projekt oder Datei nicht gefunden",
                 _ => "API-Abfrage fehlgeschlagen",
             };
             return Err(AnvilError::Provider(format!("{reason} (HTTP {status})")));
         }
         let bytes = response.bytes().await?;
-        if bytes.len() > 4 * 1024 * 1024 { return Err(AnvilError::TooLarge); }
+        if bytes.len() > 4 * 1024 * 1024 {
+            return Err(AnvilError::TooLarge);
+        }
         serde_json::from_slice(&bytes).map_err(AnvilError::Config)
     }
 
@@ -81,16 +89,24 @@ impl Catalog {
         }
         let response = self.client.get(parsed).send().await?;
         if !response.status().is_success() {
-            return Err(AnvilError::Provider(format!("Download nicht verfügbar: HTTP {}", response.status())));
+            return Err(AnvilError::Provider(format!(
+                "Download nicht verfügbar: HTTP {}",
+                response.status()
+            )));
         }
         if response.url().scheme() != "https" {
             return Err(AnvilError::Provider("Unsichere HTTP-Weiterleitung".into()));
         }
-        if response.content_length().is_some_and(|n| n > MAX_ARCHIVE_SIZE) {
+        if response
+            .content_length()
+            .is_some_and(|n| n > MAX_ARCHIVE_SIZE)
+        {
             return Err(AnvilError::TooLarge);
         }
         std::fs::create_dir_all(cache_dir)?;
-        let file = tempfile::Builder::new().prefix("addon-anvil-").suffix(".zip")
+        let file = tempfile::Builder::new()
+            .prefix("addon-anvil-")
+            .suffix(".zip")
             .tempfile_in(cache_dir)?;
         let path = file.into_temp_path();
         let mut output = tokio::fs::File::create(&path).await?;
@@ -99,8 +115,12 @@ impl Catalog {
         let mut stream = response.bytes_stream();
         while let Some(next) = stream.next().await {
             let chunk = next?;
-            received = received.checked_add(chunk.len() as u64).ok_or(AnvilError::TooLarge)?;
-            if received > MAX_ARCHIVE_SIZE { return Err(AnvilError::TooLarge); }
+            received = received
+                .checked_add(chunk.len() as u64)
+                .ok_or(AnvilError::TooLarge)?;
+            if received > MAX_ARCHIVE_SIZE {
+                return Err(AnvilError::TooLarge);
+            }
             output.write_all(&chunk).await?;
         }
         output.flush().await?;
@@ -118,8 +138,12 @@ mod tests {
     use super::*;
     #[test]
     fn stable_ids_for_updates() {
-        let release = Release { id: "987".into(), version: "v1.5".into(),
-            download_url: Some("https://example.test/archive.zip".into()), published_at: None };
+        let release = Release {
+            id: "987".into(),
+            version: "v1.5".into(),
+            download_url: Some("https://example.test/archive.zip".into()),
+            published_at: None,
+        };
         assert!(!release_is_newer("987", &release));
         assert!(release_is_newer("986", &release));
     }
@@ -128,7 +152,8 @@ mod tests {
         let mock = wiremock::MockServer::start().await;
         wiremock::Mock::given(wiremock::matchers::method("GET"))
             .respond_with(wiremock::ResponseTemplate::new(429))
-            .mount(&mock).await;
+            .mount(&mock)
+            .await;
         let cat = Catalog::new().unwrap();
         let response: Result<serde_json::Value> = cat.get(&mock.uri(), None).await;
         assert!(matches!(response, Err(AnvilError::Provider(_))));

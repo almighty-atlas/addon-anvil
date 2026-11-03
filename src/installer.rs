@@ -7,13 +7,20 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 fn game_and_addons(cfg: &AppConfig, id: &str) -> Result<PathBuf> {
-    if wow::wow_running() { return Err(AnvilError::GameRunning); }
-    let game = cfg.installations.iter().find(|g| g.id == id)
+    if wow::wow_running() {
+        return Err(AnvilError::GameRunning);
+    }
+    let game = cfg
+        .installations
+        .iter()
+        .find(|g| g.id == id)
         .ok_or_else(|| AnvilError::InvalidGame("Installation fehlt in Konfiguration".into()))?;
     // Revalidate paths just before any changes, including after app startup.
     let validated = wow::validate(&game.path)?;
     let addons = validated.addons_dir();
-    let interface = addons.parent().ok_or_else(|| AnvilError::UnsafePath("Interface".into()))?;
+    let interface = addons
+        .parent()
+        .ok_or_else(|| AnvilError::UnsafePath("Interface".into()))?;
     if interface.is_symlink() || addons.is_symlink() {
         return Err(AnvilError::UnsafePath("Symlink in Interface/AddOns".into()));
     }
@@ -31,7 +38,10 @@ fn guarded_dir(root: &Path, folder: &str) -> Result<PathBuf> {
     }
     let path = root.join(folder);
     if path.is_symlink() {
-        return Err(AnvilError::UnsafePath(format!("Symlink: {}", path.display())));
+        return Err(AnvilError::UnsafePath(format!(
+            "Symlink: {}",
+            path.display()
+        )));
     }
     Ok(path)
 }
@@ -39,23 +49,42 @@ fn guarded_dir(root: &Path, folder: &str) -> Result<PathBuf> {
 /// Install or update a project as one unit. All owned folders are moved to an
 /// on-filesystem backup before the new folders are activated. Any error before
 /// the config commit restores the original folders.
-pub fn install_zip(paths: &Paths, cfg: &AppConfig, install_id: &str,
-    archive_path: &Path, request: InstallRequest) -> Result<AppConfig> {
+pub fn install_zip(
+    paths: &Paths,
+    cfg: &AppConfig,
+    install_id: &str,
+    archive_path: &Path,
+    request: InstallRequest,
+) -> Result<AppConfig> {
     let addons = game_and_addons(cfg, install_id)?;
-    let current_interface = cfg.installations.iter().find(|g| g.id == install_id)
+    let current_interface = cfg
+        .installations
+        .iter()
+        .find(|g| g.id == install_id)
         .and_then(|g| g.interface);
-    let temp = tempfile::Builder::new().prefix(".addon-anvil-stage-").tempdir_in(&addons)?;
+    let temp = tempfile::Builder::new()
+        .prefix(".addon-anvil-stage-")
+        .tempdir_in(&addons)?;
     let unpacked = temp.path().join("incoming");
     let PackageFolders { folders } = archive::extract_and_inspect(
-        archive_path, &unpacked, current_interface, request.provider != ProviderKind::Local
+        archive_path,
+        &unpacked,
+        current_interface,
+        request.provider != ProviderKind::Local,
     )?;
-    let old = cfg.managed.iter().find(|m| m.installation_id == install_id
-        && m.provider == request.provider && m.project_id == request.project_id);
+    let old = cfg.managed.iter().find(|m| {
+        m.installation_id == install_id
+            && m.provider == request.provider
+            && m.project_id == request.project_id
+    });
     let new_folders: Vec<String> = folders.iter().map(|(name, _)| name.clone()).collect();
     for folder in &new_folders {
         let dest = guarded_dir(&addons, folder)?;
         if let Some(other) = cfg.owned_folder(install_id, folder) {
-            if old.map(|p| p.project_id != other.project_id || p.provider != other.provider).unwrap_or(true) {
+            if old
+                .map(|p| p.project_id != other.project_id || p.provider != other.provider)
+                .unwrap_or(true)
+            {
                 return Err(AnvilError::Conflict(folder.clone()));
             }
         } else if dest.exists() {
@@ -81,8 +110,11 @@ pub fn install_zip(paths: &Paths, cfg: &AppConfig, install_id: &str,
             moved_new.push(folder.clone());
         }
         let mut updated = cfg.clone();
-        updated.managed.retain(|m| !(m.installation_id == install_id
-            && m.provider == request.provider && m.project_id == request.project_id));
+        updated.managed.retain(|m| {
+            !(m.installation_id == install_id
+                && m.provider == request.provider
+                && m.project_id == request.project_id)
+        });
         updated.managed.push(ManagedAddon {
             installation_id: install_id.to_string(),
             provider: request.provider,
@@ -103,9 +135,8 @@ pub fn install_zip(paths: &Paths, cfg: &AppConfig, install_id: &str,
             }
         }
         for folder in moved_old.iter().rev() {
-            if let (Ok(from), Ok(to)) = (
-                guarded_dir(&backup, folder), guarded_dir(&addons, folder)
-            ) {
+            if let (Ok(from), Ok(to)) = (guarded_dir(&backup, folder), guarded_dir(&addons, folder))
+            {
                 let _ = fs::rename(from, to);
             }
         }
@@ -115,32 +146,51 @@ pub fn install_zip(paths: &Paths, cfg: &AppConfig, install_id: &str,
 
 /// Uninstalls ONLY folders recorded as owned by this project and leaves WTF
 /// entirely untouched. A failed config save restores the moved folders.
-pub fn uninstall(paths: &Paths, cfg: &AppConfig, install_id: &str,
-    provider: ProviderKind, project_id: &str) -> Result<AppConfig> {
+pub fn uninstall(
+    paths: &Paths,
+    cfg: &AppConfig,
+    install_id: &str,
+    provider: ProviderKind,
+    project_id: &str,
+) -> Result<AppConfig> {
     let addons = game_and_addons(cfg, install_id)?;
-    let old = cfg.managed.iter().find(|m| m.installation_id == install_id
-        && m.provider == provider && m.project_id == project_id)
+    let old = cfg
+        .managed
+        .iter()
+        .find(|m| {
+            m.installation_id == install_id && m.provider == provider && m.project_id == project_id
+        })
         .ok_or_else(|| AnvilError::InvalidOperation("Addon ist nicht verwaltet".into()))?;
-    let temp = tempfile::Builder::new().prefix(".addon-anvil-remove-").tempdir_in(&addons)?;
+    let temp = tempfile::Builder::new()
+        .prefix(".addon-anvil-remove-")
+        .tempdir_in(&addons)?;
     let mut moved = Vec::new();
     let transaction = (|| -> Result<AppConfig> {
         for folder in &old.folders {
             let target = guarded_dir(&addons, folder)?;
             if target.exists() {
-                if !target.is_dir() { return Err(AnvilError::Conflict(folder.clone())); }
+                if !target.is_dir() {
+                    return Err(AnvilError::Conflict(folder.clone()));
+                }
                 fs::rename(&target, guarded_dir(temp.path(), folder)?)?;
                 moved.push(folder.clone());
             }
         }
         let mut updated = cfg.clone();
-        updated.managed.retain(|m| !(m.installation_id == install_id
-            && m.provider == provider && m.project_id == project_id));
+        updated.managed.retain(|m| {
+            !(m.installation_id == install_id
+                && m.provider == provider
+                && m.project_id == project_id)
+        });
         paths.save(&updated)?;
         Ok(updated)
     })();
     if transaction.is_err() {
         for folder in moved.iter().rev() {
-            if let (Ok(from), Ok(to)) = (guarded_dir(temp.path(), folder), guarded_dir(&addons, folder)) {
+            if let (Ok(from), Ok(to)) = (
+                guarded_dir(temp.path(), folder),
+                guarded_dir(&addons, folder),
+            ) {
                 let _ = fs::rename(from, to);
             }
         }
@@ -175,7 +225,8 @@ mod tests {
 
     fn zip_addon(path: &Path, value: &str) {
         let mut zip = zip::ZipWriter::new(fs::File::create(path).unwrap());
-        zip.start_file("Demo/Demo_Forever.toc", SimpleFileOptions::default()).unwrap();
+        zip.start_file("Demo/Demo_Forever.toc", SimpleFileOptions::default())
+            .unwrap();
         zip.write_all(value.as_bytes()).unwrap();
         zip.finish().unwrap();
     }
@@ -197,7 +248,11 @@ mod tests {
         zip_addon(&zip, "## Version: 1");
         let cfg = install_zip(&paths, &cfg, &id, &zip, request("1")).unwrap();
         assert_eq!(cfg.managed[0].folders, ["Demo"]);
-        let target = cfg.selected().unwrap().addons_dir().join("Demo/Demo_Forever.toc");
+        let target = cfg
+            .selected()
+            .unwrap()
+            .addons_dir()
+            .join("Demo/Demo_Forever.toc");
         assert_eq!(fs::read_to_string(&target).unwrap(), "## Version: 1");
         zip_addon(&zip, "## Version: 2");
         let cfg = install_zip(&paths, &cfg, &id, &zip, request("2")).unwrap();
@@ -219,8 +274,14 @@ mod tests {
         fs::write(addons.join("Demo/Demo_Forever.toc"), "original").unwrap();
         let zip = tmp.path().join("addon.zip");
         zip_addon(&zip, "new");
-        assert!(matches!(install_zip(&paths, &cfg, &id, &zip, request("1")), Err(AnvilError::Conflict(_))));
-        assert_eq!(fs::read_to_string(addons.join("Demo/Demo_Forever.toc")).unwrap(), "original");
+        assert!(matches!(
+            install_zip(&paths, &cfg, &id, &zip, request("1")),
+            Err(AnvilError::Conflict(_))
+        ));
+        assert_eq!(
+            fs::read_to_string(addons.join("Demo/Demo_Forever.toc")).unwrap(),
+            "original"
+        );
     }
 
     #[test]
@@ -233,10 +294,19 @@ mod tests {
         // A regular file where a config directory should be forces failure.
         let blocked = tmp.path().join("blocked");
         fs::write(&blocked, "not a directory").unwrap();
-        let paths = Paths { config: blocked, ..paths };
+        let paths = Paths {
+            config: blocked,
+            ..paths
+        };
         assert!(install_zip(&paths, &cfg, &id, &zip, request("2")).is_err());
         assert_eq!(
-            fs::read_to_string(cfg.selected().unwrap().addons_dir().join("Demo/Demo_Forever.toc")).unwrap(),
+            fs::read_to_string(
+                cfg.selected()
+                    .unwrap()
+                    .addons_dir()
+                    .join("Demo/Demo_Forever.toc")
+            )
+            .unwrap(),
             "old"
         );
     }

@@ -7,7 +7,9 @@ use std::path::{Path, PathBuf};
 
 pub fn validate(candidate: &Path) -> Result<GameInstallation> {
     let root = candidate.canonicalize()?;
-    if !root.is_dir() { return Err(AnvilError::InvalidGame(root.display().to_string())); }
+    if !root.is_dir() {
+        return Err(AnvilError::InvalidGame(root.display().to_string()));
+    }
     // A selected client folder is required; do not silently pick between client flavours.
     let leaf = root.file_name().and_then(|n| n.to_str()).unwrap_or("");
     let addons = root.join("Interface").join("AddOns");
@@ -18,7 +20,8 @@ pub fn validate(candidate: &Path) -> Result<GameInstallation> {
         || addons.is_dir();
     if !evidence {
         return Err(AnvilError::InvalidGame(format!(
-            "{}: Data, WoW-Executable oder Interface/AddOns fehlt", root.display()
+            "{}: Data, WoW-Executable oder Interface/AddOns fehlt",
+            root.display()
         )));
     }
     // Only accept known Forever client folder names unless the user has supplied
@@ -27,7 +30,7 @@ pub fn validate(candidate: &Path) -> Result<GameInstallation> {
         let manifests = toc::scan_installed(&addons, None).unwrap_or_default();
         if !manifests.iter().any(|m| m.toc.forever_suffix) {
             return Err(AnvilError::InvalidGame(
-                "Keine eindeutige Forever-Installation. Bitte _forever_ auswählen".into()
+                "Keine eindeutige Forever-Installation. Bitte _forever_ auswählen".into(),
             ));
         }
     }
@@ -44,16 +47,21 @@ pub fn validate(candidate: &Path) -> Result<GameInstallation> {
 /// WoW 1.60.1 => 16001; an unknown future format results in None.
 pub fn infer_interface(root: &Path) -> Option<u32> {
     let mut markers = vec![root.join(".build.info")];
-    if let Some(parent) = root.parent() { markers.push(parent.join(".build.info")); }
+    if let Some(parent) = root.parent() {
+        markers.push(parent.join(".build.info"));
+    }
     for marker in markers {
         if let Ok(content) = fs::read_to_string(marker) {
             for line in content.lines() {
-                for token in line.split(['|',' ','\t']) {
-                    let digits: Vec<u32> = token.split('.').take(3)
-                        .map(|s| s.parse::<u32>()).collect::<Option<Vec<_>>>()
+                for token in line.split(['|', ' ', '\t']) {
+                    let digits: Vec<u32> = token
+                        .split('.')
+                        .take(3)
+                        .map(|s| s.parse::<u32>())
+                        .collect::<Option<Vec<_>>>()
                         .unwrap_or_default();
                     if digits.len() == 3 && digits[0] == 1 && digits[1] >= 50 && digits[2] < 100 {
-                        return Some(digits[0]*10000 + digits[1]*100 + digits[2]);
+                        return Some(digits[0] * 10000 + digits[1] * 100 + digits[2]);
                     }
                 }
             }
@@ -63,7 +71,9 @@ pub fn infer_interface(root: &Path) -> Option<u32> {
 }
 
 pub fn scan_candidates() -> Vec<GameInstallation> {
-    let Some(home) = dirs::home_dir() else { return Vec::new() };
+    let Some(home) = dirs::home_dir() else {
+        return Vec::new();
+    };
     let mut roots = vec![
         home.join("Games"),
         home.join(".wine/drive_c"),
@@ -88,7 +98,9 @@ pub fn scan_candidates() -> Vec<GameInstallation> {
     for root in roots {
         bounded_scan(&root, 0, &mut 0usize, &mut |path| {
             if let Ok(game) = validate(path) {
-                if seen.insert(game.id.clone()) { result.push(game); }
+                if seen.insert(game.id.clone()) {
+                    result.push(game);
+                }
             }
         });
     }
@@ -103,34 +115,71 @@ fn bounded_scan(root: &Path, depth: u8, visited: &mut usize, found: &mut impl Fn
         return;
     }
     *visited += 1;
-    if matches!(root.file_name().and_then(|n| n.to_str()), Some("_forever_" | "_classic_beta_")) {
+    if matches!(
+        root.file_name().and_then(|n| n.to_str()),
+        Some("_forever_" | "_classic_beta_")
+    ) {
         found(root);
         return;
     }
-    let Ok(entries) = fs::read_dir(root) else { return };
+    let Ok(entries) = fs::read_dir(root) else {
+        return;
+    };
     for entry in entries.flatten() {
-        let Ok(kind) = entry.file_type() else { continue };
-        if !kind.is_dir() || kind.is_symlink() { continue; }
+        let Ok(kind) = entry.file_type() else {
+            continue;
+        };
+        if !kind.is_dir() || kind.is_symlink() {
+            continue;
+        }
         let name = entry.file_name();
         let name = name.to_string_lossy();
-        if matches!(name.as_ref(), "node_modules" | ".git" | "cache" | "Cache" | "logs" | "Logs" | "Downloads" | "shadercache" | "WTF" | "AddOns") {
+        if matches!(
+            name.as_ref(),
+            "node_modules"
+                | ".git"
+                | "cache"
+                | "Cache"
+                | "logs"
+                | "Logs"
+                | "Downloads"
+                | "shadercache"
+                | "WTF"
+                | "AddOns"
+        ) {
             continue;
         }
         bounded_scan(&entry.path(), depth + 1, visited, found);
-        if *visited >= MAX_FOLDERS { break; }
+        if *visited >= MAX_FOLDERS {
+            break;
+        }
     }
 }
 
 /// A conservative Linux process check. The UI prevents writes if any WoW
 /// process is found. This never kills or signals the game.
 pub fn wow_running() -> bool {
-    let Ok(entries) = fs::read_dir("/proc") else { return false };
+    let Ok(entries) = fs::read_dir("/proc") else {
+        return false;
+    };
     for entry in entries.flatten() {
-        if !entry.file_name().to_string_lossy().chars().all(|c| c.is_ascii_digit()) { continue; }
-        let Ok(cmdline) = fs::read(entry.path().join("cmdline")) else { continue };
+        if !entry
+            .file_name()
+            .to_string_lossy()
+            .chars()
+            .all(|c| c.is_ascii_digit())
+        {
+            continue;
+        }
+        let Ok(cmdline) = fs::read(entry.path().join("cmdline")) else {
+            continue;
+        };
         let name = String::from_utf8_lossy(&cmdline).to_ascii_lowercase();
-        if name.contains("wow.exe") || name.contains("wowclassic.exe")
-            || name.contains("wowforever.exe") || name.contains("world of warcraft.exe") {
+        if name.contains("wow.exe")
+            || name.contains("wowclassic.exe")
+            || name.contains("wowforever.exe")
+            || name.contains("world of warcraft.exe")
+        {
             return true;
         }
     }
@@ -145,7 +194,11 @@ mod tests {
         let temp = tempfile::tempdir().unwrap();
         let root = temp.path().join("_forever_");
         fs::create_dir_all(root.join("Data")).unwrap();
-        fs::write(temp.path().join(".build.info"), "Version!STRING:0\n1.60.1.70685\n").unwrap();
+        fs::write(
+            temp.path().join(".build.info"),
+            "Version!STRING:0\n1.60.1.70685\n",
+        )
+        .unwrap();
         let game = validate(&root).unwrap();
         assert_eq!(game.interface, Some(16001));
     }

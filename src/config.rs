@@ -54,7 +54,8 @@ impl Paths {
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            tmp.as_file().set_permissions(std::fs::Permissions::from_mode(0o600))?;
+            tmp.as_file()
+                .set_permissions(std::fs::Permissions::from_mode(0o600))?;
         }
         serde_json::to_writer_pretty(&mut tmp, config)?;
         tmp.write_all(b"\n")?;
@@ -71,7 +72,11 @@ mod tests {
     #[test]
     fn corrupt_config_is_not_overwritten() {
         let dir = tempfile::tempdir().unwrap();
-        let paths = Paths { config: dir.path().to_owned(), data: dir.path().into(), cache: dir.path().into() };
+        let paths = Paths {
+            config: dir.path().to_owned(),
+            data: dir.path().into(),
+            cache: dir.path().into(),
+        };
         std::fs::write(paths.config_file(), b"{broken").unwrap();
         assert!(paths.load().is_err());
         assert_eq!(std::fs::read(paths.config_file()).unwrap(), b"{broken");
@@ -80,7 +85,11 @@ mod tests {
     #[test]
     fn round_trip_atomic() {
         let dir = tempfile::tempdir().unwrap();
-        let paths = Paths { config: dir.path().to_owned(), data: dir.path().into(), cache: dir.path().into() };
+        let paths = Paths {
+            config: dir.path().to_owned(),
+            data: dir.path().into(),
+            cache: dir.path().into(),
+        };
         paths.save(&AppConfig::default()).unwrap();
         assert_eq!(paths.load().unwrap().schema_version, 1);
     }

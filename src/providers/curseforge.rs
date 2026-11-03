@@ -6,9 +6,14 @@ use serde::Deserialize;
 const WOW_GAME_ID: u64 = 1;
 
 #[derive(Deserialize)]
-struct Envelope<T> { data: T }
+struct Envelope<T> {
+    data: T,
+}
 #[derive(Deserialize)]
-struct VersionType { id: u64, name: String }
+struct VersionType {
+    id: u64,
+    name: String,
+}
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct CfMod {
@@ -43,41 +48,62 @@ fn key() -> Result<String> {
 }
 
 async fn forever_type(cat: &Catalog, key: &str) -> Result<u64> {
-    let url = format!("{}/v1/games/{WOW_GAME_ID}/version-types", cat.curseforge_base);
+    let url = format!(
+        "{}/v1/games/{WOW_GAME_ID}/version-types",
+        cat.curseforge_base
+    );
     let types: Envelope<Vec<VersionType>> = cat.get(&url, Some(key)).await?;
-    types.data.into_iter()
+    types
+        .data
+        .into_iter()
         .find(|v| {
             let name = v.name.to_ascii_lowercase();
             name.contains("forever") || name.contains("camelot")
-        }).map(|v| v.id)
-        .ok_or_else(|| AnvilError::Provider(
-            "CurseForge meldet keinen Forever-Versionstyp; nicht auf Retail/Classic ausweichen".into()
-        ))
+        })
+        .map(|v| v.id)
+        .ok_or_else(|| {
+            AnvilError::Provider(
+                "CurseForge meldet keinen Forever-Versionstyp; nicht auf Retail/Classic ausweichen"
+                    .into(),
+            )
+        })
 }
 
 async fn get_files(cat: &Catalog, key: &str, id: u64, version_type: u64) -> Result<Vec<CfFile>> {
-    let url = format!("{}/v1/mods/{id}/files?gameVersionTypeId={version_type}&pageSize=50",
-        cat.curseforge_base);
+    let url = format!(
+        "{}/v1/mods/{id}/files?gameVersionTypeId={version_type}&pageSize=50",
+        cat.curseforge_base
+    );
     let response: Envelope<Vec<CfFile>> = cat.get(&url, Some(key)).await?;
     Ok(response.data)
 }
 
-async fn convert(cat: &Catalog, key: &str, version_type: u64,
-    item: CfMod) -> Result<RemoteAddon> {
+async fn convert(cat: &Catalog, key: &str, version_type: u64, item: CfMod) -> Result<RemoteAddon> {
     let files = get_files(cat, key, item.id, version_type).await?;
     // Filtered by official Forever game-version type, not by similar filenames.
     let file = files.into_iter().next();
-    let download = if item.allow_mod_distribution == Some(false) { None } else {
-        file.as_ref().and_then(|f| f.download_url.clone())
+    let download = if item.allow_mod_distribution == Some(false) {
+        None
+    } else {
+        file.as_ref()
+            .and_then(|f| f.download_url.clone())
             .filter(|url| url::Url::parse(url).is_ok_and(|u| u.scheme() == "https"))
     };
     let restriction = if item.allow_mod_distribution == Some(false) {
         Some("Der Autor untersagt Drittanbieter-Downloads".into())
     } else if download.is_none() {
         Some("CurseForge stellt keinen freigegebenen Download bereit".into())
-    } else { None };
-    let project_url = format!("https://www.curseforge.com/wow/addons/{}",
-        if item.slug.is_empty() { item.id.to_string() } else { item.slug });
+    } else {
+        None
+    };
+    let project_url = format!(
+        "https://www.curseforge.com/wow/addons/{}",
+        if item.slug.is_empty() {
+            item.id.to_string()
+        } else {
+            item.slug
+        }
+    );
     Ok(RemoteAddon {
         provider: ProviderKind::CurseForge,
         project_id: item.id.to_string(),
@@ -100,21 +126,27 @@ async fn convert(cat: &Catalog, key: &str, version_type: u64,
 pub async fn search(cat: &Catalog, query: &str) -> Result<Vec<RemoteAddon>> {
     let key = key()?;
     let flavor = forever_type(cat, &key).await?;
-    let url = format!("{}/v1/mods/search?gameId={WOW_GAME_ID}&gameVersionTypeId={flavor}&pageSize=20&searchFilter={}",
+    let url = format!(
+        "{}/v1/mods/search?gameId={WOW_GAME_ID}&gameVersionTypeId={flavor}&pageSize=20&searchFilter={}",
         cat.curseforge_base,
-        url::form_urlencoded::byte_serialize(query.as_bytes()).collect::<String>());
+        url::form_urlencoded::byte_serialize(query.as_bytes()).collect::<String>()
+    );
     let response: Envelope<Vec<CfMod>> = cat.get(&url, Some(&key)).await?;
     let mut results = Vec::new();
     for item in response.data {
         // Each candidate has an independently queried Forever release.
-        if let Ok(addon) = convert(cat, &key, flavor, item).await { results.push(addon); }
+        if let Ok(addon) = convert(cat, &key, flavor, item).await {
+            results.push(addon);
+        }
     }
     Ok(results)
 }
 
 pub async fn latest(cat: &Catalog, id: &str) -> Result<RemoteAddon> {
     let key = key()?;
-    let id: u64 = id.parse().map_err(|_| AnvilError::Provider("CurseForge-ID ungültig".into()))?;
+    let id: u64 = id
+        .parse()
+        .map_err(|_| AnvilError::Provider("CurseForge-ID ungültig".into()))?;
     let flavor = forever_type(cat, &key).await?;
     let url = format!("{}/v1/mods/{id}", cat.curseforge_base);
     let response: Envelope<CfMod> = cat.get(&url, Some(&key)).await?;

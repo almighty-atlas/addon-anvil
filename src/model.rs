@@ -77,9 +77,9 @@ impl AppConfig {
     }
 
     pub fn owned_folder(&self, install_id: &str, folder: &str) -> Option<&ManagedAddon> {
-        self.managed.iter().find(|m| {
-            m.installation_id == install_id && m.folders.iter().any(|f| f == folder)
-        })
+        self.managed
+            .iter()
+            .find(|m| m.installation_id == install_id && m.folders.iter().any(|f| f == folder))
     }
 }
 

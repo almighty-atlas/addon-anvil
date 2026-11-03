@@ -4,7 +4,8 @@ use std::fs;
 use std::path::Path;
 
 fn split_names(input: &str) -> Vec<String> {
-    input.split([',', ' ', '\t'])
+    input
+        .split([',', ' ', '\t'])
         .map(str::trim)
         .filter(|s| !s.is_empty())
         .map(str::to_string)
@@ -12,10 +13,17 @@ fn split_names(input: &str) -> Vec<String> {
 }
 
 pub fn parse(content: &str, forever_suffix: bool) -> TocMetadata {
-    let mut metadata = TocMetadata { forever_suffix, ..TocMetadata::default() };
+    let mut metadata = TocMetadata {
+        forever_suffix,
+        ..TocMetadata::default()
+    };
     for line in content.trim_start_matches('\u{feff}').lines() {
-        let Some(rest) = line.trim().strip_prefix("##") else { continue };
-        let Some((name, value)) = rest.split_once(':') else { continue };
+        let Some(rest) = line.trim().strip_prefix("##") else {
+            continue;
+        };
+        let Some((name, value)) = rest.split_once(':') else {
+            continue;
+        };
         let value = value.trim().to_string();
         match name.trim().to_ascii_lowercase().as_str() {
             "title" => metadata.title = Some(value),
@@ -23,8 +31,9 @@ pub fn parse(content: &str, forever_suffix: bool) -> TocMetadata {
             "version" => metadata.version = Some(value),
             "interface" => {
                 metadata.interfaces.extend(
-                    value.split([',', ' ', '\t'])
-                        .filter_map(|s| s.trim().parse::<u32>().ok())
+                    value
+                        .split([',', ' ', '\t'])
+                        .filter_map(|s| s.trim().parse::<u32>().ok()),
                 );
             }
             "dependencies" | "deps" | "requireddeps" => metadata.dependencies = split_names(&value),
@@ -42,8 +51,10 @@ pub fn parse(content: &str, forever_suffix: bool) -> TocMetadata {
 pub fn preferred_toc(folder: &Path) -> Option<(std::path::PathBuf, bool)> {
     let name = folder.file_name()?.to_str()?;
     for (suffix, dedicated) in [
-        ("_Forever.toc", true), ("_Camelot.toc", true),
-        ("_Mainline.toc", false), (".toc", false),
+        ("_Forever.toc", true),
+        ("_Camelot.toc", true),
+        ("_Mainline.toc", false),
+        (".toc", false),
     ] {
         let candidate = folder.join(format!("{name}{suffix}"));
         if candidate.is_file() && !candidate.is_symlink() {
@@ -70,7 +81,9 @@ pub fn scan_installed(addons: &Path, current: Option<u32>) -> Result<Vec<Scanned
     let mut found = Vec::new();
     for entry in fs::read_dir(addons)? {
         let entry = entry?;
-        if !entry.file_type()?.is_dir() || entry.path().is_symlink() { continue; }
+        if !entry.file_type()?.is_dir() || entry.path().is_symlink() {
+            continue;
+        }
         if let Some((toc, dedicated)) = preferred_toc(&entry.path()) {
             let bytes = fs::read(&toc)?;
             let text = String::from_utf8_lossy(&bytes);
@@ -92,8 +105,11 @@ mod tests {
     use super::*;
     #[test]
     fn parse_metadata_and_multiple_versions() {
-        let toc = parse("\u{feff}## Title: Hallo\n## Interface: 16001, 16002\n## Version: 2.4\n## OptionalDeps: LibA, LibB\n## X-WoWI-ID: 1234\n", false);
-        assert_eq!(toc.interfaces, vec![16001,16002]);
+        let toc = parse(
+            "\u{feff}## Title: Hallo\n## Interface: 16001, 16002\n## Version: 2.4\n## OptionalDeps: LibA, LibB\n## X-WoWI-ID: 1234\n",
+            false,
+        );
+        assert_eq!(toc.interfaces, vec![16001, 16002]);
         assert_eq!(toc.optional_dependencies, vec!["LibA", "LibB"]);
         assert_eq!(toc.wowi_id.as_deref(), Some("1234"));
         assert_eq!(compatibility(&toc, Some(16001)), Some(true));
