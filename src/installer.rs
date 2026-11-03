@@ -317,7 +317,11 @@ mod tests {
         let zip = tmp.path().join("addon.zip");
         zip_addon(&zip, "## Version: 1");
         let cfg = install_zip(&paths, &cfg, &id, &zip, request("1")).unwrap();
-        let toc_path = cfg.selected().unwrap().addons_dir().join("Demo/Demo_Forever.toc");
+        let toc_path = cfg
+            .selected()
+            .unwrap()
+            .addons_dir()
+            .join("Demo/Demo_Forever.toc");
         fs::write(&toc_path, "modified externally").unwrap();
         assert!(matches!(
             uninstall(&paths, &cfg, &id, ProviderKind::Local, "fixture"),

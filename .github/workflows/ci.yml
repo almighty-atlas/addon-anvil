@@ -28,6 +28,11 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Generate lockfile
         run: cargo generate-lockfile
+      - name: Record lockfile for reproducible build
+        run: |
+          echo ANVIL_LOCK_BEGIN
+          cat Cargo.lock
+          echo ANVIL_LOCK_END
       - name: Format
         run: cargo fmt --all -- --check
       - name: Clippy
