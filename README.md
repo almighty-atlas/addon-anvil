@@ -1,3 +1,103 @@
 # AddonAnvil
 
-Native World of Warcraft addon manager for Linux. Development is taking place on a feature branch.
+Native Rust/iced addon manager for World of Warcraft **Forever** on Linux (Wayland, Niri, Wine/Lutris/Proton). No Electron, login, daemon, telemetry or ads.
+
+> **Development status:** Initial native implementation. Source features must pass CI and a manual Wayland test before this can be considered a production release.
+
+## Features
+
+- Detect likely Wine/Lutris/Proton Forever installations and add custom client directories.
+- Switch between several installations; recognize _forever_ and older _classic_beta_.
+- Read .toc metadata, including multiple interface numbers and _Forever/_Camelot variants.
+- Show existing manual addons without silently taking ownership of their files.
+- Import local ZIPs offline; reject unsafe paths, symlinks, oversized archives and collisions.
+- Install, update and uninstall as folder groups with an error rollback; preserve the WTF directory.
+- GitHub: repository search, direct project URLs and published ZIP releases.
+- CurseForge: optional user-provided API key, dynamic Forever type, authorized file downloads.
+- WoWInterface: direct URLs and public metadata where available.
+- Asynchronous online searches, update checks, single and batch updates.
+- Native dark German UI, no embedded browser.
+
+**Important limitations:** Full-text WoWInterface Forever search is not claimed. Manual folders cannot yet be linked to a provider. Download progress is reported by stage, not byte percentage. Some provider endpoints must be verified with a working credential/network. Ownership recording is currently by folder, not immutable file hashes (see docs/security.md).
+
+## CachyOS / Arch build
+
+Install native prerequisites and stable Rust:
+
+    sudo pacman -S --needed base-devel rustup pkgconf wayland libxkbcommon
+    rustup toolchain install stable
+    rustup default stable
+
+Clone and run:
+
+    git clone https://github.com/almighty-atlas/addon-anvil.git
+    cd addon-anvil
+    cargo run --release
+
+For the unmerged implementation, check out the feature branch instead of main:
+
+    git switch feat/native-iced-addon-manager
+    cargo run --release
+
+Direct execution after building:
+
+    ./target/release/addon-anvil
+
+Current-user install (no root):
+
+    bash packaging/install-user.sh
+
+Current-user removal, preserving app settings:
+
+    bash packaging/uninstall-user.sh
+
+An experimental Arch PKGBUILD is under packaging; run makepkg there after verifying the source revision.
+
+## Use
+
+1. On first launch, choose the Forever client folder, normally World of Warcraft/_forever_, or choose the parent World of Warcraft directory; the app validates it.
+2. The **Installierte Addons** view reads any existing AddOns contents. Unknown origins stay read-only.
+3. Use **ZIP installieren** to select a local ZIP, or **Addons entdecken** to search GitHub/CurseForge.
+4. In **Addons entdecken**, a GitHub or WoWInterface project page may be pasted to install its eligible release.
+5. Click **Updates prüfen** to check supported managed providers, and **Alle aktualisieren** to install discovered updates.
+
+Close WoW before changing files. An open WoW process blocks installation or removal.
+
+## Providers
+
+| Provider | Search | Direct project URL | Updates | Access |
+| --- | --- | --- | --- | --- |
+| GitHub | Repository search | Yes | Published release ZIPs | Public rate limits |
+| WoWInterface | Not verified for Forever | Yes | Public API where available | Anonymous |
+| CurseForge | Forever via official API | Via search | Authorized files | Your API key |
+| Local ZIP | Offline file picker | n/a | No automatic updates | None |
+
+CurseForge requires a key granted for legitimate third-party use by the official developer program. Supply it through the environment, never through a configuration file:
+
+    export CURSEFORGE_API_KEY='your-approved-key'
+    cargo run --release
+
+If the API is inaccessible, does not list Forever, or restricts file distribution, the provider fails closed. AddonAnvil does not scrape or bypass downloads.
+
+## Local state
+
+- Config: XDG_CONFIG_HOME/addon-anvil/config.json (default ~/.config/addon-anvil/config.json)
+- Data: XDG_DATA_HOME/addon-anvil (default ~/.local/share/addon-anvil)
+- Cache: XDG_CACHE_HOME/addon-anvil (default ~/.cache/addon-anvil)
+
+JSON writes are atomic and schema-versioned. Invalid configuration prevents writes rather than overwriting the original. Archives are unpacked into a temporary directory on the same filesystem. Prior addon directories are backed up until the metadata write completes. The application never modifies saved variables under WTF.
+
+Unexpected power loss can leave hidden .addon-anvil-stage-* backup directories in Interface/AddOns. Inspect them before deleting them.
+
+## Development and tests
+
+    cargo fmt --all -- --check
+    cargo clippy --all-targets -- -D warnings
+    cargo test
+    cargo build --release
+
+Tests use temporary local fixtures, do not touch a real game installation and need no personal API key. CI runs in a headless GitHub Actions Linux runner. The GUI must still be launched and visually inspected under Wayland before release.
+
+Docs: [Architecture](docs/architecture.md), [Providers](docs/providers.md), [Security](docs/security.md).
+
+The implementation is original; references include iced, Warcraft Wiki TOC format, CurseForge API, AddonForge and Lightforge. MIT license (LICENSE).

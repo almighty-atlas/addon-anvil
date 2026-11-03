@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=AddonAnvil
+GenericName=World of Warcraft Addon Manager
+Comment=Manage WoW Forever addons natively on Linux
+Exec=addon-anvil
+Icon=addon-anvil
+Terminal=false
+Categories=Game;Utility;
+Keywords=Warcraft;Addon;Forever;WoW;
+StartupNotify=true
