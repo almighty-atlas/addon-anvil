@@ -54,7 +54,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
             text("WORLD OF WARCRAFT")
                 .size(11)
                 .color(Color::from_rgb8(170, 162, 215)),
-            Space::height(22),
+            Space::new().height(22),
             side_button("Installierte Addons", Page::Installed, app.page),
             side_button("Addons entdecken", Page::Discover, app.page),
             side_button("ZIP installieren", Page::Local, app.page),
@@ -151,7 +151,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
             available_updates(app)
         ))
         .size(12),
-        Space::width(Length::Fill),
+        Space::new().width(Length::Fill),
         text(if app.busy { "Aktiv: " } else { "" }.to_string() + &app.notice).size(12),
     ]
     .spacing(16)
