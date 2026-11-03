@@ -3,7 +3,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 cargo build --release
 prefix="$HOME/.local/share"
-if [ -n "$XDG_DATA_HOME" ]; then prefix="$XDG_DATA_HOME"; fi
+if [ -n "${XDG_DATA_HOME:-}" ]; then prefix="$XDG_DATA_HOME"; fi
 bin="$HOME/.local/bin"
 install -Dm755 target/release/addon-anvil "$bin/addon-anvil"
 install -Dm644 packaging/addon-anvil.desktop "$prefix/applications/addon-anvil.desktop"

@@ -1,8 +1,8 @@
 use crate::{App, Message, Page, key};
-use addon_anvil::model::{ProviderKind, RemoteAddon, ScannedAddon};
+use addon_anvil::model::ProviderKind;
 use addon_anvil::providers;
 use iced::widget::{
-    Column, Space, button, column, container, pick_list, row, scrollable, text, text_input,
+    Space, button, column, container, pick_list, row, scrollable, text, text_input,
 };
 use iced::{Alignment, Color, Element, Length, Theme};
 use std::collections::HashSet;

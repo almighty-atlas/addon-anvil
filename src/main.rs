@@ -10,7 +10,7 @@ use addon_anvil::model::{
 use addon_anvil::providers::{self, Catalog};
 use addon_anvil::{toc, wow};
 use futures_util::future::join_all;
-use iced::{Task, Theme};
+use iced::Task;
 use std::collections::HashMap;
 use std::path::PathBuf;
 

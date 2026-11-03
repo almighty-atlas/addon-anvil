@@ -57,8 +57,8 @@ pub fn infer_interface(root: &Path) -> Option<u32> {
                     let digits: Vec<u32> = token
                         .split('.')
                         .take(3)
-                        .map(|s| s.parse::<u32>())
-                        .collect::<Result<Vec<_>, _>>()
+                        .map(|s| s.parse::<u32>().ok())
+                        .collect::<Option<Vec<_>>>()
                         .unwrap_or_default();
                     if digits.len() == 3 && digits[0] == 1 && digits[1] >= 50 && digits[2] < 100 {
                         return Some(digits[0] * 10000 + digits[1] * 100 + digits[2]);
