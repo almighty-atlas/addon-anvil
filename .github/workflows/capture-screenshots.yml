@@ -34,7 +34,9 @@ jobs:
             pkg-config libwayland-dev libxkbcommon-dev libx11-dev libxcursor-dev libxi-dev libxrandr-dev libfontconfig1-dev libdbus-1-dev
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - name: Build exact checked-out revision
+      - name: Apply Rust formatting
+        run: cargo fmt --all
+      - name: Build formatted revision
         run: cargo build --release --locked
       - name: Prepare isolated sample installation
         run: |
@@ -167,7 +169,7 @@ jobs:
           test "$GITHUB_REF_NAME" = feat/native-iced-addon-manager
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A README.md docs/screenshots
+          git add -A README.md docs/screenshots src/ui.rs src/toc.rs
           if ! git diff --cached --quiet; then
             git commit -m 'docs: add genuine screenshots of all five application screens'
             git push origin "HEAD:$GITHUB_REF_NAME"
