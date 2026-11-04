@@ -2,7 +2,19 @@
 
 Native Rust/iced addon manager for World of Warcraft **Forever** on Linux (Wayland, Niri, Wine/Lutris/Proton). No Electron, login, daemon, telemetry or ads.
 
-> **Development status:** Initial native implementation. Source features must pass CI and a manual Wayland test before this can be considered a production release.
+> **Development status:** CI-verified Linux build (format, Clippy, 23 tests and release binary). Real Wayland/Niri and provider end-to-end testing remain outstanding.
+
+## Screenshots
+
+Original screenshots captured from the running AddonAnvil 0.1.0 iced binary in a virtual Linux X11 session (Xvfb/Openbox). The client and addon names are **synthetic demo data**, not a real user installation. These captures do not verify Wayland/Niri support.
+
+| Installed addons | Discover addons |
+| --- | --- |
+| ![Installed addons with demo TOC files](docs/screenshots/installed.png) | ![Online addon discovery screen](docs/screenshots/discover.png) |
+| Local ZIP installation | Settings |
+| ![Local ZIP installation screen](docs/screenshots/local-zip.png) | ![Settings and configured Forever client](docs/screenshots/settings.png) |
+| About AddonAnvil | |
+| ![About page](docs/screenshots/about.png) | |
 
 ## Features
 
