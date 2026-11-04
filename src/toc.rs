@@ -24,8 +24,7 @@ pub fn strip_wow_colors(input: &str) -> String {
         if bytes[0] == b'|' && bytes.len() >= 2 {
             match bytes[1] {
                 b'c' | b'C'
-                    if bytes.len() >= 10
-                        && bytes[2..10].iter().all(u8::is_ascii_hexdigit) =>
+                    if bytes.len() >= 10 && bytes[2..10].iter().all(u8::is_ascii_hexdigit) =>
                 {
                     index += 10;
                     continue;

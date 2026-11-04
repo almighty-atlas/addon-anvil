@@ -97,7 +97,11 @@ fn styled_button(theme: &Theme, status: button::Status, tone: ButtonTone) -> but
         } else {
             Color::TRANSPARENT
         },
-        width: if matches!(tone, ButtonTone::Secondary) { 1.0 } else { 0.0 },
+        width: if matches!(tone, ButtonTone::Secondary) {
+            1.0
+        } else {
+            0.0
+        },
     };
     style
 }
@@ -118,7 +122,11 @@ fn nav_button_style(theme: &Theme, status: button::Status, active: bool) -> butt
     styled_button(
         theme,
         status,
-        if active { ButtonTone::Primary } else { ButtonTone::Quiet },
+        if active {
+            ButtonTone::Primary
+        } else {
+            ButtonTone::Quiet
+        },
     )
 }
 
@@ -149,13 +157,20 @@ fn field_style(_: &Theme, status: text_input::Status) -> text_input::Style {
 
 fn choice_style(_: &Theme, status: pick_list::Status) -> pick_list::Style {
     let c = Colors::active();
-    let selected = matches!(status, pick_list::Status::Hovered | pick_list::Status::Opened { .. });
+    let selected = matches!(
+        status,
+        pick_list::Status::Hovered | pick_list::Status::Opened { .. }
+    );
     pick_list::Style {
         background: c.surface_container_high.into(),
         border: Border {
             radius: 12.0.into(),
             width: 1.0,
-            color: if selected { c.primary } else { with_alpha(c.outline, 0.5) },
+            color: if selected {
+                c.primary
+            } else {
+                with_alpha(c.outline, 0.5)
+            },
         },
         text_color: c.on_surface,
         placeholder_color: c.on_surface_variant,
@@ -178,8 +193,17 @@ impl fmt::Display for GameChoice {
 }
 
 fn game_choice(game: &GameInstallation) -> GameChoice {
-    let parent = game.path.parent().and_then(|p| p.file_name()).and_then(|n| n.to_str()).unwrap_or("WoW");
-    let leaf = game.path.file_name().and_then(|n| n.to_str()).unwrap_or("Client");
+    let parent = game
+        .path
+        .parent()
+        .and_then(|p| p.file_name())
+        .and_then(|n| n.to_str())
+        .unwrap_or("WoW");
+    let leaf = game
+        .path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("Client");
     GameChoice {
         id: game.id.clone(),
         label: format!("{} · {parent}/{leaf}", game.label),
@@ -486,11 +510,17 @@ fn installed(app: &App) -> Element<'_, Message> {
         body = body.push(
             container(
                 column![
-                    text(title.to_owned()).size(18).wrapping(text::Wrapping::WordOrGlyph).width(Length::Fill),
+                    text(title.to_owned())
+                        .size(18)
+                        .wrapping(text::Wrapping::WordOrGlyph)
+                        .width(Length::Fill),
                     text(detail)
                         .size(13)
                         .color(Colors::active().on_surface_variant),
-                    text(body_text.to_owned()).size(12).wrapping(text::Wrapping::WordOrGlyph).width(Length::Fill),
+                    text(body_text.to_owned())
+                        .size(12)
+                        .wrapping(text::Wrapping::WordOrGlyph)
+                        .width(Length::Fill),
                 ]
                 .spacing(6),
             )
@@ -807,7 +837,12 @@ mod tests {
     #[test]
     fn all_button_variants_have_expressive_corner_radius() {
         let theme = Theme::Dark;
-        for tone in [ButtonTone::Primary, ButtonTone::Secondary, ButtonTone::Quiet, ButtonTone::Danger] {
+        for tone in [
+            ButtonTone::Primary,
+            ButtonTone::Secondary,
+            ButtonTone::Quiet,
+            ButtonTone::Danger,
+        ] {
             let style = styled_button(&theme, button::Status::Active, tone);
             assert_eq!(style.border.radius.top_left, 14.0);
             assert!(style.background.is_some());
