@@ -12,6 +12,43 @@ fn split_names(input: &str) -> Vec<String> {
         .collect()
 }
 
+/// Remove WoW's inline color escapes from user-visible TOC metadata.
+/// Only complete |cAARRGGBB and |r codes are recognized; malformed codes
+/// remain visible instead of accidentally swallowing a title's contents.
+pub fn strip_wow_colors(input: &str) -> String {
+    let mut cleaned = String::with_capacity(input.len());
+    let mut index = 0;
+    while index < input.len() {
+        let rest = &input[index..];
+        let bytes = rest.as_bytes();
+        if bytes[0] == b'|' && bytes.len() >= 2 {
+            match bytes[1] {
+                b'c' | b'C'
+                    if bytes.len() >= 10
+                        && bytes[2..10].iter().all(u8::is_ascii_hexdigit) =>
+                {
+                    index += 10;
+                    continue;
+                }
+                b'r' | b'R' => {
+                    index += 2;
+                    continue;
+                }
+                b'|' => {
+                    cleaned.push('|');
+                    index += 2;
+                    continue;
+                }
+                _ => {}
+            }
+        }
+        let next = rest.chars().next().expect("valid char boundary");
+        cleaned.push(next);
+        index += next.len_utf8();
+    }
+    cleaned
+}
+
 pub fn parse(content: &str, forever_suffix: bool) -> TocMetadata {
     let mut metadata = TocMetadata {
         forever_suffix,
@@ -26,9 +63,9 @@ pub fn parse(content: &str, forever_suffix: bool) -> TocMetadata {
         };
         let value = value.trim().to_string();
         match name.trim().to_ascii_lowercase().as_str() {
-            "title" => metadata.title = Some(value),
-            "notes" => metadata.notes = Some(value),
-            "version" => metadata.version = Some(value),
+            "title" => metadata.title = Some(strip_wow_colors(&value)),
+            "notes" => metadata.notes = Some(strip_wow_colors(&value)),
+            "version" => metadata.version = Some(strip_wow_colors(&value)),
             "interface" => {
                 metadata.interfaces.extend(
                     value
@@ -116,6 +153,25 @@ mod tests {
         assert_eq!(compatibility(&toc, Some(15000)), Some(false));
         assert_eq!(compatibility(&toc, None), None);
     }
+    #[test]
+    fn strips_wow_title_and_notes_color_codes() {
+        let toc = parse(
+            "## Title: AtlasLoot Continued |cFF22B14C[Core]|r\\n## Notes: Grüße |cff0099FFWelt|r!\\n## Version: |cffaabbcc1.0|r\\n",
+            true,
+        );
+        assert_eq!(toc.title.as_deref(), Some("AtlasLoot Continued [Core]"));
+        assert_eq!(toc.notes.as_deref(), Some("Grüße Welt!"));
+        assert_eq!(toc.version.as_deref(), Some("1.0"));
+    }
+
+    #[test]
+    fn leaves_malformed_escapes_and_unicode_intact() {
+        assert_eq!(strip_wow_colors("A |cFF00 fehlt"), "A |cFF00 fehlt");
+        assert_eq!(strip_wow_colors("A || B |x C"), "A | B |x C");
+        assert_eq!(strip_wow_colors("|cff12aa99日本語|r"), "日本語");
+        assert_eq!(strip_wow_colors("No markup"), "No markup");
+    }
+
     #[test]
     fn suffix_beats_generic() {
         let dir = tempfile::tempdir().unwrap();
