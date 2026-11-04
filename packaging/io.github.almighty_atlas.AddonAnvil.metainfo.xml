@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.almighty_atlas.AddonAnvil</id>
+  <name>AddonAnvil</name>
+  <summary>Native addon management for World of Warcraft on Linux</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <description>
+    <p>Manage installed addons, import local ZIP archives and use supported online providers without Electron, advertisements or telemetry.</p>
+  </description>
+  <launchable type="desktop-id">addon-anvil.desktop</launchable>
+  <url type="homepage">https://github.com/almighty-atlas/addon-anvil</url>
+  <provides><binary>addon-anvil</binary></provides>
+  <categories><category>Game</category><category>Utility</category></categories>
+</component>

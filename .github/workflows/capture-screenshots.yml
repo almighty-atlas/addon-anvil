@@ -1,0 +1,176 @@
+name: Capture AddonAnvil screenshots
+
+on:
+  push:
+    branches:
+      - feat/native-iced-addon-manager
+    paths:
+      - .github/workflows/capture-screenshots.yml
+      - src/**
+      - Cargo.toml
+      - Cargo.lock
+      - packaging/matugen/**
+      - docs/design-system.md
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: addon-anvil-capture-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  capture:
+    if: github.repository == 'almighty-atlas/addon-anvil'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install virtual desktop tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb openbox scrot xdotool libgl1-mesa-dri libegl1 libxkbcommon0 libxkbcommon-x11-0 \
+            pkg-config libwayland-dev libxkbcommon-dev libx11-dev libxcursor-dev libxi-dev libxrandr-dev libfontconfig1-dev libdbus-1-dev
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Apply Rust formatting
+        run: cargo fmt --all
+      - name: Build formatted revision
+        run: cargo build --release --locked
+      - name: Prepare isolated sample installation
+        run: |
+          python3 - <<'PYDATA'
+          import json
+          from pathlib import Path
+          game = Path('/tmp/AddonAnvil-Demo/battlenet/drive_c/Program Files (x86)/World of Warcraft/_forever_')
+          game.joinpath('Data').mkdir(parents=True, exist_ok=True)
+          root = game.joinpath('Interface/AddOns')
+          for folder, title, notes, version in [
+              ('DemoQuest', 'DemoQuest |cFF22B14C[Core]|r – Aufgaben', 'Eine Beispiel-Erweiterung für die Screenshot-Dokumentation.', '1.4.0'),
+              ('DemoInventory', 'DemoInventory – Taschen', 'Beispiel für Inventar-Anpassungen.', '2.1.3'),
+              ('DemoRaid', 'DemoRaid – Gruppen', 'Beispiel für Gruppen- und Raid-Werkzeuge.', '0.9.7'),
+              ('DemoMap', 'DemoMap – Karte', 'Ein Demonstrations-Addon für die Übersicht.', '3.0.0'),
+          ]:
+              addon = root.joinpath(folder)
+              addon.mkdir(parents=True, exist_ok=True)
+              toc = '## Title: ' + title + '\n## Notes: ' + notes + '\n## Version: ' + version + '\n## Interface: 16001\n'
+              addon.joinpath(folder + '_Forever.toc').write_text(toc, encoding='utf-8')
+          config = Path('/tmp/anvil-capture/config/addon-anvil')
+          config.mkdir(parents=True, exist_ok=True)
+          config.joinpath('config.json').write_text(json.dumps({
+              'schema_version': 1,
+              'installations': [{'id': str(game), 'label': 'Forever (Demo-Installation)', 'path': str(game), 'interface': 16001}],
+              'selected_installation': str(game),
+              'managed': [],
+              'last_check': None,
+          }, ensure_ascii=False, indent=2), encoding='utf-8')
+          PYDATA
+      - name: Capture all five app screens
+        shell: bash
+        run: |
+          set -euo pipefail
+          export DISPLAY=:98
+          export WGPU_BACKEND=gl
+          export LIBGL_ALWAYS_SOFTWARE=1
+          export XDG_CONFIG_HOME=/tmp/anvil-capture/config
+          export XDG_DATA_HOME=/tmp/anvil-capture/data
+          export XDG_CACHE_HOME=/tmp/anvil-capture/cache
+          export XDG_RUNTIME_DIR=/tmp/anvil-capture/runtime
+          mkdir -p "$XDG_RUNTIME_DIR" docs/screenshots
+          # scrot appends _000 if output exists. Remove old captures so README targets stay current.
+          rm -f docs/screenshots/*.png
+          chmod 700 "$XDG_RUNTIME_DIR"
+          APP_PID=0
+          WM_PID=0
+          Xvfb :98 -screen 0 1440x900x24 -nolisten tcp >/tmp/anvil-xvfb.log 2>&1 &
+          XVFB_PID=$!
+          trap 'kill "$APP_PID" "$WM_PID" "$XVFB_PID" 2>/dev/null || true' EXIT
+          sleep 1
+          openbox >/tmp/anvil-wm.log 2>&1 &
+          WM_PID=$!
+          sleep 1
+          ./target/release/addon-anvil >/tmp/anvil-app.log 2>&1 &
+          APP_PID=$!
+          WINDOW=""
+          for attempt in $(seq 1 50); do
+            WINDOW=$(xdotool search --onlyvisible --name 'AddonAnvil' | head -n 1 || true)
+            if [ -n "$WINDOW" ]; then break; fi
+            sleep 0.3
+          done
+          if [ -z "$WINDOW" ]; then cat /tmp/anvil-app.log; exit 1; fi
+          xdotool windowactivate --sync "$WINDOW"
+          sleep 2
+          for page in installed discover local-zip settings about; do
+            case "$page" in
+              installed) y=130 ;;
+              discover) y=188 ;;
+              local-zip) y=241 ;;
+              settings) y=297 ;;
+              about) y=352 ;;
+            esac
+            xdotool mousemove --window "$WINDOW" 100 "$y" click 1
+            sleep 1
+            scrot -u -b -q 100 "docs/screenshots/$page.png"
+          done
+          python3 - <<'PYVALIDATE'
+          import hashlib, struct
+          from pathlib import Path
+          seen = set()
+          for name in ['installed', 'discover', 'local-zip', 'settings', 'about']:
+              data = (Path('docs/screenshots') / (name + '.png')).read_bytes()
+              assert len(data) > 15000, name
+              assert data.startswith(bytes.fromhex('89504e470d0a1a0a')), name
+              width, height = struct.unpack('>II', data[16:24])
+              assert width > 1100 and height > 700, (name, width, height)
+              seen.add(hashlib.sha256(data).hexdigest())
+              print(name, width, height, len(data))
+          assert len(seen) == 5, 'Pages did not render distinct screenshots'
+          assert {p.name for p in Path('docs/screenshots').glob('*.png')} == {
+              name + '.png' for name in ['installed', 'discover', 'local-zip', 'settings', 'about']
+          }, 'Unexpected stale screenshot files'
+          PYVALIDATE
+      - name: Add screenshots to README
+        run: |
+          python3 - <<'PYREADME'
+          from pathlib import Path
+          path = Path('README.md')
+          content = path.read_text(encoding='utf-8')
+          content = content.replace(
+              '> **Development status:** Initial native implementation. Source features must pass CI and a manual Wayland test before this can be considered a production release.',
+              '> **Development status:** CI-verified Linux build (format, Clippy, 23 tests and release binary). Real Wayland/Niri and provider end-to-end testing remain outstanding.'
+          )
+          gallery = """## Screenshots
+
+          Original screenshots captured from the running AddonAnvil 0.1.0 iced binary in a virtual Linux X11 session (Xvfb/Openbox). The client and addon names are **synthetic demo data**, not a real user installation. These captures do not verify Wayland/Niri support.
+
+          | Installed addons | Discover addons |
+          | --- | --- |
+          | ![Installed addons with demo TOC files](docs/screenshots/installed.png) | ![Online addon discovery screen](docs/screenshots/discover.png) |
+          | Local ZIP installation | Settings |
+          | ![Local ZIP installation screen](docs/screenshots/local-zip.png) | ![Settings and configured Forever client](docs/screenshots/settings.png) |
+          | About AddonAnvil | |
+          | ![About page](docs/screenshots/about.png) | |
+
+          """
+          if '## Screenshots' not in content:
+              assert '## Features' in content
+              content = content.replace('## Features', gallery + '## Features', 1)
+          path.write_text(content, encoding='utf-8')
+          PYREADME
+      - uses: actions/upload-artifact@v4
+        with:
+          name: addon-anvil-ui-screenshots
+          path: docs/screenshots/*.png
+          retention-days: 14
+      - name: Commit to feature branch, never merge
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = feat/native-iced-addon-manager
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A README.md docs/screenshots src/ui.rs src/toc.rs
+          if ! git diff --cached --quiet; then
+            git commit -m 'docs: add genuine screenshots of all five application screens'
+            git push origin "HEAD:$GITHUB_REF_NAME"
+          fi

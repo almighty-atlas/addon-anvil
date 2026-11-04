@@ -1,0 +1,35 @@
+# Maintainer: AddonAnvil contributors
+pkgname=addon-anvil-git
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Native WoW Forever addon manager for Linux"
+arch=('x86_64')
+url="https://github.com/almighty-atlas/addon-anvil"
+license=('MIT')
+depends=('libxkbcommon' 'wayland')
+makedepends=('rust' 'cargo' 'git' 'pkgconf')
+provides=('addon-anvil')
+conflicts=('addon-anvil')
+source=('addon-anvil::git+https://github.com/almighty-atlas/addon-anvil.git')
+sha256sums=('SKIP')
+
+pkgver() {
+  cd "$srcdir/addon-anvil"
+  printf "0.1.0.r%s.g%s" "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+}
+
+build() {
+  cd "$srcdir/addon-anvil"
+  export CARGO_TARGET_DIR="$srcdir/target"
+  cargo build --release --locked
+}
+
+package() {
+  cd "$srcdir/addon-anvil"
+  install -Dm755 "$srcdir/target/release/addon-anvil" "$pkgdir/usr/bin/addon-anvil"
+  install -Dm644 packaging/addon-anvil.desktop "$pkgdir/usr/share/applications/addon-anvil.desktop"
+  install -Dm644 assets/icons/addon-anvil.svg "$pkgdir/usr/share/icons/hicolor/scalable/apps/addon-anvil.svg"
+  install -Dm644 packaging/io.github.almighty_atlas.AddonAnvil.metainfo.xml \
+    "$pkgdir/usr/share/metainfo/io.github.almighty_atlas.AddonAnvil.metainfo.xml"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

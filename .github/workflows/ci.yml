@@ -1,0 +1,44 @@
+name: Rust CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  rust:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      RUST_BACKTRACE: "1"
+      CARGO_TERM_COLOR: always
+    steps:
+      - uses: actions/checkout@v4
+      - name: Linux Wayland and build prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            pkg-config libwayland-dev libxkbcommon-dev \
+            libx11-dev libxcursor-dev libxi-dev libxrandr-dev \
+            libfontconfig1-dev libdbus-1-dev
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Locked dependencies
+        run: cargo fetch --locked
+      - name: Format
+        run: cargo fmt --all -- --check
+      - name: Clippy
+        run: cargo clippy --all-targets -- -D warnings
+      - name: Test (headless)
+        run: cargo test
+      - name: Release build
+        run: cargo build --release --locked
+      - name: Package native executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: addon-anvil-linux-x86_64
+          path: target/release/addon-anvil
+          retention-days: 14
