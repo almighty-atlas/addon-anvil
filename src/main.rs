@@ -731,8 +731,7 @@ fn main() -> iced::Result {
         .title("AddonAnvil — WoW Addon Manager")
         .theme(ui::theme)
         .subscription(|_| {
-            iced::time::every(std::time::Duration::from_secs(5))
-                .map(|_| Message::ThemeTick)
+            iced::time::every(std::time::Duration::from_secs(5)).map(|_| Message::ThemeTick)
         })
         .window_size((1190.0, 760.0))
         .centered()
