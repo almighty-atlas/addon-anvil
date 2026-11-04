@@ -374,7 +374,9 @@ fn installed(app: &App) -> Element<'_, Message> {
             container(
                 column![
                     text(title.to_owned()).size(18),
-                    text(detail).size(13).color(Colors::active().on_surface_variant),
+                    text(detail)
+                        .size(13)
+                        .color(Colors::active().on_surface_variant),
                     text(body_text.to_owned()).size(12),
                 ]
                 .spacing(6),
@@ -472,7 +474,7 @@ fn discover(app: &App) -> Element<'_, Message> {
         content = content.push(
             container(text("CurseForge benötigt CURSEFORGE_API_KEY aus der Umgebung.").size(13))
                 .padding(MARGIN)
-                .style(card_style)
+                .style(card_style),
         );
     }
     for remote in &app.discovered {
