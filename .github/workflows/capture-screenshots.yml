@@ -6,6 +6,11 @@ on:
       - feat/native-iced-addon-manager
     paths:
       - .github/workflows/capture-screenshots.yml
+      - src/**
+      - Cargo.toml
+      - Cargo.lock
+      - packaging/matugen/**
+      - docs/design-system.md
 
 permissions:
   contents: write
@@ -21,15 +26,12 @@ jobs:
       - name: Install virtual desktop tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y xvfb openbox scrot xdotool libgl1-mesa-dri libegl1 libxkbcommon0 libxkbcommon-x11-0
-      - name: Download verified Linux binary
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          mkdir -p /tmp/anvil-dist
-          gh run download 41742086942 --repo "$GITHUB_REPOSITORY" --name addon-anvil-linux-x86_64 --dir /tmp/anvil-dist
-          test -s /tmp/anvil-dist/addon-anvil
-          chmod +x /tmp/anvil-dist/addon-anvil
+          sudo apt-get install -y xvfb openbox scrot xdotool libgl1-mesa-dri libegl1 libxkbcommon0 libxkbcommon-x11-0 \
+            pkg-config libwayland-dev libxkbcommon-dev libx11-dev libxcursor-dev libxi-dev libxrandr-dev libfontconfig1-dev libdbus-1-dev
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build exact checked-out revision
+        run: cargo build --release --locked
       - name: Prepare isolated sample installation
         run: |
           python3 - <<'PYDATA'
@@ -80,7 +82,7 @@ jobs:
           openbox >/tmp/anvil-wm.log 2>&1 &
           WM_PID=$!
           sleep 1
-          /tmp/anvil-dist/addon-anvil >/tmp/anvil-app.log 2>&1 &
+          ./target/release/addon-anvil >/tmp/anvil-app.log 2>&1 &
           APP_PID=$!
           WINDOW=""
           for attempt in $(seq 1 50); do
