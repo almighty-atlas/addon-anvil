@@ -1,13 +1,12 @@
 use crate::{App, Message, Page, design::Colors, key};
-use addon_anvil::model::GameInstallation;
-use addon_anvil::model::ProviderKind;
+use addon_anvil::model::{GameInstallation, ProviderKind};
 use addon_anvil::providers;
 use iced::widget::{
     Space, button, column, container, pick_list, row, scrollable, text, text_input,
 };
 use iced::{Alignment, Border, Color, Element, Length, Theme};
-use std::fmt;
 use std::collections::HashSet;
+use std::fmt;
 
 const MARGIN: f32 = 18.0;
 
@@ -88,7 +87,7 @@ fn styled_button(theme: &Theme, status: button::Status, tone: ButtonTone) -> but
         _ => background,
     };
     let disabled = matches!(status, button::Status::Disabled);
-    let mut style = secondary_button(theme, status);
+    let mut style = button::secondary(theme, status);
     style.background = Some(with_alpha(current, if disabled { 0.45 } else { 1.0 }).into());
     style.text_color = with_alpha(foreground, if disabled { 0.55 } else { 1.0 });
     style.border = Border {
@@ -784,4 +783,34 @@ fn about<'a>() -> Element<'a, Message> {
     ]
     .spacing(20)
     .into()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    #[test]
+    fn game_picker_label_is_compact_but_retains_identity() {
+        let game = GameInstallation {
+            id: "/home/atlas/Games/battlenet/drive_c/Program Files (x86)/World of Warcraft/_forever_".into(),
+            label: "Forever (_forever_)".into(),
+            path: PathBuf::from("/home/atlas/Games/battlenet/drive_c/Program Files (x86)/World of Warcraft/_forever_"),
+            interface: Some(12902),
+        };
+        let choice = game_choice(&game);
+        assert_eq!(choice.id, game.id);
+        assert!(choice.to_string().contains("World of Warcraft/_forever_"));
+        assert!(!choice.to_string().contains("/home/atlas/Games"));
+    }
+
+    #[test]
+    fn all_button_variants_have_expressive_corner_radius() {
+        let theme = Theme::Dark;
+        for tone in [ButtonTone::Primary, ButtonTone::Secondary, ButtonTone::Quiet, ButtonTone::Danger] {
+            let style = styled_button(&theme, button::Status::Active, tone);
+            assert_eq!(style.border.radius.top_left, 14.0);
+            assert!(style.background.is_some());
+        }
+    }
 }
