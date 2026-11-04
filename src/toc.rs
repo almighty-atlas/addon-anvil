@@ -156,7 +156,7 @@ mod tests {
     #[test]
     fn strips_wow_title_and_notes_color_codes() {
         let toc = parse(
-            "## Title: AtlasLoot Continued |cFF22B14C[Core]|r\\n## Notes: Grüße |cff0099FFWelt|r!\\n## Version: |cffaabbcc1.0|r\\n",
+            "## Title: AtlasLoot Continued |cFF22B14C[Core]|r\n## Notes: Grüße |cff0099FFWelt|r!\n## Version: |cffaabbcc1.0|r\n",
             true,
         );
         assert_eq!(toc.title.as_deref(), Some("AtlasLoot Continued [Core]"));
