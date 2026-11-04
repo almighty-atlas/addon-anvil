@@ -16,6 +16,14 @@ Original screenshots captured from the running AddonAnvil 0.1.0 iced binary in a
 | About AddonAnvil | |
 | ![About page](docs/screenshots/about.png) | |
 
+## UI and WoW metadata
+
+- Dux-inspired action buttons, navigation, text fields and selectors use consistent rounded styles, semantic colors and distinct hover/pressed/disabled states.
+- The install picker displays a short path while keeping the original absolute directory as its stable identifier. Full paths remain visible under **Einstellungen**.
+- The installed-addon toolbar separates filtering from update actions, so all buttons remain accessible at the default window width.
+- WoW TOC titles, notes and versions display without `|cAARRGGBB` / `|r` color escapes; the parser preserves malformed escapes and UTF-8 text.
+- GUI screenshots are real Xvfb captures with synthetic addon data, including a long Wine path and a color-coded TOC title. Real Niri/Wayland retesting after each UI change remains a release gate.
+
 ## Features
 
 - Detect likely Wine/Lutris/Proton Forever installations and add custom client directories.
