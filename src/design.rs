@@ -112,7 +112,7 @@ mod tests {
 
     #[test]
     fn falls_back_for_incomplete_palette() {
-        assert!(Colors::from_json(r#"{"primary":"#123456"}"#).is_none());
+        assert!(Colors::from_json(r##"{"primary":"#123456"}"##).is_none());
     }
 
     #[test]
