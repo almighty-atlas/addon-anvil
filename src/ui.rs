@@ -1,48 +1,101 @@
-use crate::{App, Message, Page, key};
+use crate::{App, Message, Page, design::Colors, key};
 use addon_anvil::model::ProviderKind;
 use addon_anvil::providers;
 use iced::widget::{
     Space, button, column, container, pick_list, row, scrollable, text, text_input,
 };
-use iced::{Alignment, Color, Element, Length, Theme};
+use iced::{Alignment, Border, Color, Element, Length, Theme};
 use std::collections::HashSet;
 
 const MARGIN: f32 = 18.0;
 
+// All major visual decisions use semantic roles, not ad-hoc RGB values.
+// A valid optional matugen file can override the built-in dark palette.
 pub fn theme(_: &App) -> Theme {
+    let c = Colors::active();
     Theme::custom(
-        "AddonAnvil",
+        "AddonAnvil · Dux inspired",
         iced::theme::Palette {
-            background: Color::from_rgb8(23, 22, 36),
-            text: Color::from_rgb8(233, 232, 245),
-            primary: Color::from_rgb8(122, 103, 237),
-            success: Color::from_rgb8(77, 193, 155),
-            danger: Color::from_rgb8(231, 99, 131),
-            warning: Color::from_rgb8(243, 187, 106),
+            background: c.background,
+            text: c.on_surface,
+            primary: c.primary,
+            success: Color::from_rgb8(88, 198, 150),
+            danger: c.error,
+            warning: Color::from_rgb8(244, 190, 105),
         },
     )
 }
 
+fn with_alpha(color: Color, alpha: f32) -> Color {
+    Color { a: alpha, ..color }
+}
+
+fn surface_style(_: &Theme) -> container::Style {
+    let c = Colors::active();
+    container::Style {
+        background: Some(c.surface_container.into()),
+        text_color: Some(c.on_surface),
+        ..Default::default()
+    }
+}
+
+fn card_style(_: &Theme) -> container::Style {
+    let c = Colors::active();
+    container::Style {
+        background: Some(c.surface_container_high.into()),
+        text_color: Some(c.on_surface),
+        border: Border {
+            color: with_alpha(c.outline, 0.24),
+            width: 1.0,
+            radius: 18.0.into(),
+        },
+        ..Default::default()
+    }
+}
+
+fn nav_button_style(theme: &Theme, state: button::Status, active: bool) -> button::Style {
+    let c = Colors::active();
+    let mut style = if active {
+        button::primary(theme, state)
+    } else {
+        button::secondary(theme, state)
+    };
+    style.background = Some(
+        if active {
+            c.primary
+        } else if matches!(state, button::Status::Hovered) {
+            c.surface_container_high
+        } else {
+            c.surface_container
+        }
+        .into(),
+    );
+    style.text_color = if active { c.on_primary } else { c.on_surface };
+    style.border = Border {
+        radius: 14.0.into(),
+        ..Default::default()
+    };
+    style
+}
+
 fn heading<'a>(title: &str, detail: &str) -> Element<'a, Message> {
+    let c = Colors::active();
     column![
-        text(title.to_owned()).size(29),
-        text(detail.to_owned())
-            .size(14)
-            .color(Color::from_rgb8(164, 161, 190)),
+        text("ADDONANVIL  /  WORLD OF WARCRAFT")
+            .size(12)
+            .color(c.primary),
+        text(title.to_owned()).size(30),
+        text(detail.to_owned()).size(14).color(c.on_surface_variant),
     ]
     .spacing(7)
     .into()
 }
 
 fn side_button<'a>(name: &'static str, page: Page, active: Page) -> Element<'a, Message> {
-    button(text(name).size(16))
+    button(text(name).size(15))
         .width(Length::Fill)
-        .padding(13)
-        .style(if page == active {
-            button::primary
-        } else {
-            button::secondary
-        })
+        .padding(14)
+        .style(move |theme, state| nav_button_style(theme, state, page == active))
         .on_press(Message::Navigate(page))
         .into()
 }
@@ -50,10 +103,15 @@ fn side_button<'a>(name: &'static str, page: Page, active: Page) -> Element<'a, 
 pub fn view(app: &App) -> Element<'_, Message> {
     let side = container(
         column![
-            text("ADDONANVIL").size(23),
-            text("WORLD OF WARCRAFT")
+            row![
+                text("◆").size(28).color(Colors::active().primary),
+                text("AddonAnvil").size(22),
+            ]
+            .spacing(11)
+            .align_y(Alignment::Center),
+            text("FOREVER ADDON MANAGER")
                 .size(11)
-                .color(Color::from_rgb8(170, 162, 215)),
+                .color(Colors::active().on_surface_variant),
             Space::new().height(22),
             side_button("Installierte Addons", Page::Installed, app.page),
             side_button("Addons entdecken", Page::Discover, app.page),
@@ -64,10 +122,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .spacing(8)
         .width(Length::Fill),
     )
-    .padding(19)
-    .width(235)
+    .padding(20)
+    .width(252)
     .height(Length::Fill)
-    .style(container::secondary);
+    .style(surface_style);
 
     let content = match app.page {
         Page::Installed => installed(app),
@@ -113,10 +171,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
             container(row![
                 text(format!("Fehler: {error}"))
                     .size(13)
-                    .color(Color::from_rgb8(255, 175, 190)),
+                    .color(Colors::active().error),
             ])
             .padding(12)
-            .style(container::rounded_box),
+            .style(card_style),
         );
     }
     if let Some((provider, id)) = &app.confirm_remove {
@@ -141,7 +199,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 .spacing(12),
             )
             .padding(15)
-            .style(container::rounded_box),
+            .style(card_style),
         );
     }
     let status = row![
@@ -150,9 +208,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
             app.installed.len(),
             available_updates(app)
         ))
-        .size(12),
+        .size(12)
+        .color(Colors::active().on_surface_variant),
         Space::new().width(Length::Fill),
-        text(if app.busy { "Aktiv: " } else { "" }.to_string() + &app.notice).size(12),
+        text(if app.busy { "Aktiv: " } else { "" }.to_string() + &app.notice)
+            .size(12)
+            .color(Colors::active().on_surface_variant),
     ]
     .spacing(16)
     .align_y(Alignment::Center);
@@ -160,7 +221,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         row![
             side,
             container(scrollable(center).height(Length::Fill))
-                .padding(25)
+                .padding(30)
                 .width(Length::Fill)
                 .height(Length::Fill)
         ]
@@ -168,7 +229,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         container(status)
             .padding(13)
             .width(Length::Fill)
-            .style(container::secondary)
+            .style(surface_style)
     ])
     .width(Length::Fill)
     .height(Length::Fill)
@@ -221,11 +282,12 @@ fn installed(app: &App) -> Element<'_, Message> {
                 app.config.last_check.as_deref().unwrap_or("noch keine")
             ))
             .size(12)
+            .color(Colors::active().on_surface_variant)
         ]
         .spacing(18)
         .align_y(Alignment::Center),
     ]
-    .spacing(16);
+    .spacing(19);
     let Some(game) = app.config.selected() else {
         return body
             .push(text("Füge eine Forever-Installation hinzu."))
@@ -312,14 +374,14 @@ fn installed(app: &App) -> Element<'_, Message> {
             container(
                 column![
                     text(title.to_owned()).size(18),
-                    text(detail).size(13).color(Color::from_rgb8(169, 159, 205)),
+                    text(detail).size(13).color(Colors::active().on_surface_variant),
                     text(body_text.to_owned()).size(12),
                 ]
                 .spacing(6),
             )
             .padding(MARGIN)
             .width(Length::Fill)
-            .style(container::rounded_box),
+            .style(card_style),
         );
         visible += 1;
     }
@@ -344,7 +406,7 @@ fn addon_card<'a>(name: &str, detail: &str, actions: Element<'a, Message>) -> El
                 text(name.to_owned()).size(18),
                 text(detail.to_owned())
                     .size(13)
-                    .color(Color::from_rgb8(176, 167, 214)),
+                    .color(Colors::active().on_surface_variant),
             ]
             .spacing(7)
             .width(Length::Fill),
@@ -355,7 +417,7 @@ fn addon_card<'a>(name: &str, detail: &str, actions: Element<'a, Message>) -> El
     )
     .padding(MARGIN)
     .width(Length::Fill)
-    .style(container::rounded_box)
+    .style(card_style)
     .into()
 }
 
@@ -400,11 +462,18 @@ fn discover(app: &App) -> Element<'_, Message> {
     ]
     .spacing(16);
     if app.provider == ProviderKind::WoWInterface {
-        content = content.push(text("WoWInterface: Keine verifizierte Forever-Katalogsuche. Projektlinks können unten hinzugefügt werden."));
+        content = content.push(
+            container(text("WoWInterface: Keine verifizierte Forever-Katalogsuche. Projektlinks können unten hinzugefügt werden.").size(13))
+                .padding(MARGIN)
+                .style(card_style)
+        );
     }
     if app.provider == ProviderKind::CurseForge && std::env::var("CURSEFORGE_API_KEY").is_err() {
-        content =
-            content.push(text("CurseForge benötigt CURSEFORGE_API_KEY aus der Umgebung.").size(13));
+        content = content.push(
+            container(text("CurseForge benötigt CURSEFORGE_API_KEY aus der Umgebung.").size(13))
+                .padding(MARGIN)
+                .style(card_style)
+        );
     }
     for remote in &app.discovered {
         let mut actions =
@@ -448,14 +517,48 @@ fn discover(app: &App) -> Element<'_, Message> {
 }
 
 fn local(app: &App) -> Element<'_, Message> {
+    let c = Colors::active();
     column![
-        heading("Lokale ZIP installieren", "Funktioniert vollständig offline, ohne Anbieter-Konto"),
-        text("Das Archiv wird vor der Installation überprüft. Fremde Ordner werden niemals überschrieben."),
-        button("ZIP-Datei auswählen").on_press(Message::PickZip).style(button::primary),
-        text(if app.config.selected().is_some() {
-            "Ziel: Interface/AddOns der ausgewählten Installation"
-        } else { "Bitte zuerst einen Forever-Clientordner auswählen" }),
-    ].spacing(19).into()
+        heading("ZIP installieren", "Lokale Erweiterungen sicher importieren"),
+        container(
+            column![
+                text("Addon aus einem Archiv hinzufügen").size(20),
+                text("Wähle eine vorhandene ZIP-Datei. AddonAnvil prüft Pfade, Dateien und Konflikte vor dem Installieren.")
+                    .size(14)
+                    .color(c.on_surface_variant),
+                Space::new().height(4),
+                button("ZIP-Datei auswählen")
+                    .on_press(Message::PickZip)
+                    .style(button::primary)
+                    .padding(15),
+                text(if app.config.selected().is_some() {
+                    "Ziel: Interface/AddOns der ausgewählten Installation"
+                } else {
+                    "Bitte zuerst einen Forever-Clientordner auswählen"
+                })
+                .size(13)
+                .color(c.on_surface_variant),
+            ]
+            .spacing(16),
+        )
+        .padding(24)
+        .width(Length::Fill)
+        .style(card_style),
+        container(
+            column![
+                text("Geschützte Installation").size(16),
+                text("Keine Änderungen am WTF-Ordner. Keine Überschreibung fremder Addons. Fehler beim Installieren führen zu einem Rollback.")
+                    .size(14)
+                    .color(c.on_surface_variant),
+            ]
+            .spacing(9),
+        )
+        .padding(20)
+        .width(Length::Fill)
+        .style(card_style),
+    ]
+    .spacing(20)
+    .into()
 }
 
 fn settings(app: &App) -> Element<'_, Message> {
@@ -488,13 +591,27 @@ fn settings(app: &App) -> Element<'_, Message> {
                 .align_y(Alignment::Center),
             )
             .padding(MARGIN)
-            .style(container::rounded_box),
+            .style(card_style),
         );
     }
     if let Some(paths) = &app.paths {
-        content = content
-            .push(text(format!("Konfiguration: {}", paths.config_file().display())).size(12));
-        content = content.push(text(format!("Cache: {}", paths.cache.display())).size(12));
+        content = content.push(
+            container(
+                column![
+                    text("Lokale Dateien").size(17),
+                    text(format!("Konfiguration: {}", paths.config_file().display()))
+                        .size(12)
+                        .color(Colors::active().on_surface_variant),
+                    text(format!("Cache: {}", paths.cache.display()))
+                        .size(12)
+                        .color(Colors::active().on_surface_variant),
+                ]
+                .spacing(9),
+            )
+            .padding(20)
+            .width(Length::Fill)
+            .style(card_style),
+        );
     }
     content = content.push(text(
         "CurseForge-Schlüssel: ausschließlich CURSEFORGE_API_KEY, nicht in config.json gespeichert"
@@ -503,11 +620,41 @@ fn settings(app: &App) -> Element<'_, Message> {
 }
 
 fn about<'a>() -> Element<'a, Message> {
+    let c = Colors::active();
     column![
-        heading("Über AddonAnvil", "Nativer WoW-Addon-Manager für Linux und Wayland"),
-        text(concat!("Version ", env!("CARGO_PKG_VERSION"), " · MIT-Lizenz")),
-        text("Keine Telemetrie, kein Login, kein Hintergrunddienst. Dateien werden nur auf Nutzeraktion verändert."),
-        button("GitHub-Projekt öffnen")
-            .on_press(Message::OpenUrl("https://github.com/almighty-atlas/addon-anvil".into())),
-    ].spacing(18).into()
+        heading("Über AddonAnvil", "Native Addon-Verwaltung für World of Warcraft Forever"),
+        container(
+            column![
+                row![
+                    text("◆").size(40).color(c.primary),
+                    column![
+                        text("AddonAnvil").size(25),
+                        text(concat!("Version ", env!("CARGO_PKG_VERSION"), "  ·  MIT-Lizenz"))
+                            .size(13)
+                            .color(c.on_surface_variant),
+                    ]
+                    .spacing(6),
+                ]
+                .spacing(16)
+                .align_y(Alignment::Center),
+                text("Entwickelt für Linux, Wayland und Niri. Rust und iced — ohne Electron und ohne integrierten Browser.")
+                    .size(14),
+                text("Kein Konto, keine Telemetrie, kein Hintergrunddienst. Dateien werden nur auf ausdrückliche Nutzeraktion verändert.")
+                    .size(14)
+                    .color(c.on_surface_variant),
+                button("GitHub-Projekt öffnen")
+                    .on_press(Message::OpenUrl("https://github.com/almighty-atlas/addon-anvil".into()))
+                    .style(button::primary),
+            ]
+            .spacing(19),
+        )
+        .padding(24)
+        .width(Length::Fill)
+        .style(card_style),
+        text("Dux-inspirierte Gestaltung. Unabhängiges Community-Projekt, keine offizielle Dux-Shell-Erweiterung.")
+            .size(12)
+            .color(c.on_surface_variant),
+    ]
+    .spacing(20)
+    .into()
 }
