@@ -1,10 +1,12 @@
 use crate::{App, Message, Page, design::Colors, key};
+use addon_anvil::model::GameInstallation;
 use addon_anvil::model::ProviderKind;
 use addon_anvil::providers;
 use iced::widget::{
     Space, button, column, container, pick_list, row, scrollable, text, text_input,
 };
 use iced::{Alignment, Border, Color, Element, Length, Theme};
+use std::fmt;
 use std::collections::HashSet;
 
 const MARGIN: f32 = 18.0;
@@ -53,29 +55,136 @@ fn card_style(_: &Theme) -> container::Style {
     }
 }
 
-fn nav_button_style(theme: &Theme, state: button::Status, active: bool) -> button::Style {
+// Dux uses expressive rounded controls. iced's stock buttons/fields have
+// almost-square corners, so ALL action widgets use these shared styles.
+#[derive(Clone, Copy)]
+enum ButtonTone {
+    Primary,
+    Secondary,
+    Quiet,
+    Danger,
+}
+
+fn blend(base: Color, over: Color, amount: f32) -> Color {
+    Color {
+        r: base.r * (1.0 - amount) + over.r * amount,
+        g: base.g * (1.0 - amount) + over.g * amount,
+        b: base.b * (1.0 - amount) + over.b * amount,
+        a: base.a,
+    }
+}
+
+fn styled_button(theme: &Theme, status: button::Status, tone: ButtonTone) -> button::Style {
     let c = Colors::active();
-    let mut style = if active {
-        button::primary(theme, state)
-    } else {
-        button::secondary(theme, state)
+    let (background, foreground) = match tone {
+        ButtonTone::Primary => (c.primary, c.on_primary),
+        ButtonTone::Secondary => (c.surface_container_high, c.on_surface),
+        ButtonTone::Quiet => (c.surface_container, c.on_surface),
+        ButtonTone::Danger => (c.error, c.on_primary),
     };
-    style.background = Some(
-        if active {
-            c.primary
-        } else if matches!(state, button::Status::Hovered) {
-            c.surface_container_high
-        } else {
-            c.surface_container
-        }
-        .into(),
-    );
-    style.text_color = if active { c.on_primary } else { c.on_surface };
+    let current = match status {
+        button::Status::Hovered => blend(background, c.on_surface, 0.08),
+        button::Status::Pressed => blend(background, c.on_surface, 0.16),
+        _ => background,
+    };
+    let disabled = matches!(status, button::Status::Disabled);
+    let mut style = secondary_button(theme, status);
+    style.background = Some(with_alpha(current, if disabled { 0.45 } else { 1.0 }).into());
+    style.text_color = with_alpha(foreground, if disabled { 0.55 } else { 1.0 });
     style.border = Border {
         radius: 14.0.into(),
-        ..Default::default()
+        color: if matches!(tone, ButtonTone::Secondary) {
+            with_alpha(c.outline, 0.3)
+        } else {
+            Color::TRANSPARENT
+        },
+        width: if matches!(tone, ButtonTone::Secondary) { 1.0 } else { 0.0 },
     };
     style
+}
+
+fn primary_button(theme: &Theme, status: button::Status) -> button::Style {
+    styled_button(theme, status, ButtonTone::Primary)
+}
+
+fn secondary_button(theme: &Theme, status: button::Status) -> button::Style {
+    styled_button(theme, status, ButtonTone::Secondary)
+}
+
+fn danger_button(theme: &Theme, status: button::Status) -> button::Style {
+    styled_button(theme, status, ButtonTone::Danger)
+}
+
+fn nav_button_style(theme: &Theme, status: button::Status, active: bool) -> button::Style {
+    styled_button(
+        theme,
+        status,
+        if active { ButtonTone::Primary } else { ButtonTone::Quiet },
+    )
+}
+
+fn action<'a>(label: impl Into<Element<'a, Message>>) -> button::Button<'a, Message> {
+    button(label).padding([10, 16]).style(secondary_button)
+}
+
+fn field_style(_: &Theme, status: text_input::Status) -> text_input::Style {
+    let c = Colors::active();
+    let outline = if matches!(status, text_input::Status::Focused { .. }) {
+        c.primary
+    } else {
+        with_alpha(c.outline, 0.5)
+    };
+    text_input::Style {
+        background: c.surface_container_high.into(),
+        border: Border {
+            radius: 12.0.into(),
+            width: 1.0,
+            color: outline,
+        },
+        icon: c.on_surface_variant,
+        placeholder: c.on_surface_variant,
+        value: c.on_surface,
+        selection: c.primary,
+    }
+}
+
+fn choice_style(_: &Theme, status: pick_list::Status) -> pick_list::Style {
+    let c = Colors::active();
+    let selected = matches!(status, pick_list::Status::Hovered | pick_list::Status::Opened { .. });
+    pick_list::Style {
+        background: c.surface_container_high.into(),
+        border: Border {
+            radius: 12.0.into(),
+            width: 1.0,
+            color: if selected { c.primary } else { with_alpha(c.outline, 0.5) },
+        },
+        text_color: c.on_surface,
+        placeholder_color: c.on_surface_variant,
+        handle_color: c.on_surface_variant,
+    }
+}
+
+// Show short, distinguishable labels; the original absolute path remains the
+// selection ID and is never rewritten. Full paths remain visible in Settings.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct GameChoice {
+    id: String,
+    label: String,
+}
+
+impl fmt::Display for GameChoice {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(&self.label)
+    }
+}
+
+fn game_choice(game: &GameInstallation) -> GameChoice {
+    let parent = game.path.parent().and_then(|p| p.file_name()).and_then(|n| n.to_str()).unwrap_or("WoW");
+    let leaf = game.path.file_name().and_then(|n| n.to_str()).unwrap_or("Client");
+    GameChoice {
+        id: game.id.clone(),
+        label: format!("{} · {parent}/{leaf}", game.label),
+    }
 }
 
 fn heading<'a>(title: &str, detail: &str) -> Element<'a, Message> {
@@ -92,9 +201,9 @@ fn heading<'a>(title: &str, detail: &str) -> Element<'a, Message> {
 }
 
 fn side_button<'a>(name: &'static str, page: Page, active: Page) -> Element<'a, Message> {
-    button(text(name).size(15))
+    action(text(name).size(15))
         .width(Length::Fill)
-        .padding(14)
+        .padding([13, 16])
         .style(move |theme, state| nav_button_style(theme, state, page == active))
         .on_press(Message::Navigate(page))
         .into()
@@ -135,32 +244,33 @@ pub fn view(app: &App) -> Element<'_, Message> {
         Page::About => about(),
     };
     let game_picker: Element<'_, Message> = if app.config.installations.is_empty() {
-        row![
-            text("Keine Installation gefunden"),
-            button("Clientordner auswählen").on_press(Message::AddGame)
+        column![
+            text("Keine Installation gefunden").size(14),
+            action("Clientordner auswählen").on_press(Message::AddGame)
         ]
-        .spacing(12)
-        .align_y(Alignment::Center)
+        .spacing(10)
+        .width(Length::Fill)
         .into()
     } else {
-        let options: Vec<String> = app
-            .config
-            .installations
+        let options: Vec<GameChoice> = app.config.installations.iter().map(game_choice).collect();
+        let selected = options
             .iter()
-            .map(|i| i.id.clone())
-            .collect();
-        row![
-            text("Installation:").size(13),
-            pick_list(
-                options,
-                app.config.selected_installation.clone(),
-                Message::SelectGame
-            )
-            .width(Length::FillPortion(2)),
-            button("Hinzufügen").on_press(Message::AddGame)
+            .find(|option| Some(option.id.as_str()) == app.config.selected_installation.as_deref())
+            .cloned();
+        column![
+            row![
+                text("Installation").size(14),
+                Space::new().width(Length::Fill),
+                action("Hinzufügen").on_press(Message::AddGame),
+            ]
+            .align_y(Alignment::Center),
+            pick_list(options, selected, |choice| Message::SelectGame(choice.id))
+                .width(Length::Fill)
+                .padding([10, 14])
+                .style(choice_style),
         ]
-        .align_y(Alignment::Center)
-        .spacing(12)
+        .spacing(8)
+        .width(Length::Fill)
         .into()
     };
     let mut center = column![game_picker, content]
@@ -189,9 +299,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
                     text("Nur zugeordnete Addon-Ordner werden entfernt. WTF bleibt erhalten.")
                         .size(13),
                     row![
-                        button("Abbrechen").on_press(Message::CancelRemove),
-                        button("Jetzt deinstallieren")
-                            .style(button::danger)
+                        action("Abbrechen").on_press(Message::CancelRemove),
+                        action("Jetzt deinstallieren")
+                            .style(danger_button)
                             .on_press(Message::RemoveConfirmed)
                     ]
                     .spacing(12)
@@ -261,17 +371,21 @@ fn installed(app: &App) -> Element<'_, Message> {
             "Installierte Addons",
             "Installierte Pakete, Herkunft und Updates"
         ),
+        text_input("Addons filtern …", &app.query)
+            .on_input(Message::SearchChanged)
+            .padding([12, 14])
+            .style(field_style)
+            .width(Length::Fill),
         row![
-            text_input("Addons filtern …", &app.query)
-                .on_input(Message::SearchChanged)
-                .width(Length::Fill),
-            button("Aktualisieren").on_press(Message::Refresh),
-            button("Updates prüfen").on_press(Message::CheckUpdates),
-            button("Alle aktualisieren").on_press(Message::UpdateAll)
+            action("Aktualisieren").on_press(Message::Refresh),
+            action("Updates prüfen").on_press(Message::CheckUpdates),
+            action("Alle aktualisieren")
+                .style(primary_button)
+                .on_press(Message::UpdateAll)
         ]
         .spacing(10),
         row![
-            button(if app.only_updates {
+            action(if app.only_updates {
                 "Alle anzeigen"
             } else {
                 "Nur Updates"
@@ -333,14 +447,14 @@ fn installed(app: &App) -> Element<'_, Message> {
                 "installiert"
             }
         );
-        let mut buttons = row![button("Deinstallieren").style(button::secondary).on_press(
+        let mut buttons = row![action("Deinstallieren").style(secondary_button).on_press(
             Message::ConfirmRemove(item.provider, item.project_id.clone())
         )]
         .spacing(8);
         if let Some(remote) = latest.filter(|_| update) {
             buttons = buttons.push(
-                button("Aktualisieren")
-                    .style(button::primary)
+                action("Aktualisieren")
+                    .style(primary_button)
                     .on_press(Message::UpdateOne(remote.clone())),
             );
         }
@@ -373,11 +487,11 @@ fn installed(app: &App) -> Element<'_, Message> {
         body = body.push(
             container(
                 column![
-                    text(title.to_owned()).size(18),
+                    text(title.to_owned()).size(18).wrapping(text::Wrapping::WordOrGlyph).width(Length::Fill),
                     text(detail)
                         .size(13)
                         .color(Colors::active().on_surface_variant),
-                    text(body_text.to_owned()).size(12),
+                    text(body_text.to_owned()).size(12).wrapping(text::Wrapping::WordOrGlyph).width(Length::Fill),
                 ]
                 .spacing(6),
             )
@@ -403,19 +517,20 @@ fn compat_text(value: Option<bool>) -> &'static str {
 
 fn addon_card<'a>(name: &str, detail: &str, actions: Element<'a, Message>) -> Element<'a, Message> {
     container(
-        row![
-            column![
-                text(name.to_owned()).size(18),
-                text(detail.to_owned())
-                    .size(13)
-                    .color(Colors::active().on_surface_variant),
-            ]
-            .spacing(7)
-            .width(Length::Fill),
-            actions
+        column![
+            text(name.to_owned())
+                .size(18)
+                .width(Length::Fill)
+                .wrapping(text::Wrapping::WordOrGlyph),
+            text(detail.to_owned())
+                .size(13)
+                .width(Length::Fill)
+                .wrapping(text::Wrapping::WordOrGlyph)
+                .color(Colors::active().on_surface_variant),
+            actions,
         ]
-        .align_y(Alignment::Center)
-        .spacing(12),
+        .spacing(10)
+        .width(Length::Fill),
     )
     .padding(MARGIN)
     .width(Length::Fill)
@@ -430,35 +545,37 @@ fn discover(app: &App) -> Element<'_, Message> {
             "Öffentliche Projektquellen und verifizierte Releases"
         ),
         row![
-            button("GitHub")
+            action("GitHub")
                 .style(if app.provider == ProviderKind::GitHub {
-                    button::primary
+                    primary_button
                 } else {
-                    button::secondary
+                    secondary_button
                 })
                 .on_press(Message::SourceSelected(ProviderKind::GitHub)),
-            button("CurseForge")
+            action("CurseForge")
                 .style(if app.provider == ProviderKind::CurseForge {
-                    button::primary
+                    primary_button
                 } else {
-                    button::secondary
+                    secondary_button
                 })
                 .on_press(Message::SourceSelected(ProviderKind::CurseForge)),
-            button("WoWInterface")
+            action("WoWInterface")
                 .style(if app.provider == ProviderKind::WoWInterface {
-                    button::primary
+                    primary_button
                 } else {
-                    button::secondary
+                    secondary_button
                 })
                 .on_press(Message::SourceSelected(ProviderKind::WoWInterface))
         ]
         .spacing(10),
         row![
             text_input("Projekt suchen …", &app.query)
+                .padding([12, 14])
+                .style(field_style)
                 .on_input(Message::SearchChanged)
                 .on_submit(Message::SearchOnline)
                 .width(Length::Fill),
-            button("Suchen").on_press(Message::SearchOnline)
+            action("Suchen").on_press(Message::SearchOnline)
         ]
         .spacing(10),
     ]
@@ -479,12 +596,12 @@ fn discover(app: &App) -> Element<'_, Message> {
     }
     for remote in &app.discovered {
         let mut actions =
-            row![button("Projektseite").on_press(Message::OpenUrl(remote.project_url.clone()))]
+            row![action("Projektseite").on_press(Message::OpenUrl(remote.project_url.clone()))]
                 .spacing(8);
         if remote.restriction.is_none() && app.config.selected().is_some() {
             actions = actions.push(
-                button("Installieren")
-                    .style(button::primary)
+                action("Installieren")
+                    .style(primary_button)
                     .on_press(Message::InstallRemote(remote.clone())),
             );
         }
@@ -509,9 +626,11 @@ fn discover(app: &App) -> Element<'_, Message> {
     content = content.push(
         row![
             text_input("https://github.com/autor/addon", &app.link)
+                .padding([12, 14])
+                .style(field_style)
                 .on_input(Message::LinkChanged)
                 .width(Length::Fill),
-            button("Aus URL installieren").on_press(Message::AddUrl)
+            action("Aus URL installieren").on_press(Message::AddUrl)
         ]
         .spacing(10),
     );
@@ -529,9 +648,9 @@ fn local(app: &App) -> Element<'_, Message> {
                     .size(14)
                     .color(c.on_surface_variant),
                 Space::new().height(4),
-                button("ZIP-Datei auswählen")
+                action("ZIP-Datei auswählen")
                     .on_press(Message::PickZip)
-                    .style(button::primary)
+                    .style(primary_button)
                     .padding(15),
                 text(if app.config.selected().is_some() {
                     "Ziel: Interface/AddOns der ausgewählten Installation"
@@ -566,33 +685,39 @@ fn local(app: &App) -> Element<'_, Message> {
 fn settings(app: &App) -> Element<'_, Message> {
     let mut content = column![
         heading("Einstellungen", "Installationspfade und lokale Daten"),
-        button("Installationen erneut erkennen").on_press(Message::DetectGames),
-        button("Clientordner manuell hinzufügen").on_press(Message::AddGame),
+        row![
+            action("Installationen erneut erkennen").on_press(Message::DetectGames),
+            action("Clientordner manuell hinzufügen").on_press(Message::AddGame),
+        ]
+        .spacing(10),
     ]
     .spacing(18);
     for game in &app.config.installations {
         content = content.push(
             container(
-                row![
-                    column![
-                        text(game.label.clone()).size(17),
-                        text(game.path.display().to_string()).size(12),
-                        text(format!(
-                            "Interface: {}",
-                            game.interface
-                                .map(|v| v.to_string())
-                                .unwrap_or("unbekannt".into())
-                        ))
-                        .size(12),
-                    ]
-                    .width(Length::Fill)
-                    .spacing(4),
-                    button("Nicht mehr verwalten").on_press(Message::ForgetGame(game.id.clone()))
+                column![
+                    text(game.label.clone()).size(17),
+                    text(game.path.display().to_string())
+                        .size(12)
+                        .width(Length::Fill)
+                        .wrapping(text::Wrapping::WordOrGlyph)
+                        .color(Colors::active().on_surface_variant),
+                    text(format!(
+                        "Interface: {}",
+                        game.interface
+                            .map(|v| v.to_string())
+                            .unwrap_or("unbekannt".into())
+                    ))
+                    .size(12),
+                    action("Nicht mehr verwalten")
+                        .style(danger_button)
+                        .on_press(Message::ForgetGame(game.id.clone()))
                 ]
-                .spacing(12)
-                .align_y(Alignment::Center),
+                .spacing(10)
+                .width(Length::Fill),
             )
             .padding(MARGIN)
+            .width(Length::Fill)
             .style(card_style),
         );
     }
@@ -644,9 +769,9 @@ fn about<'a>() -> Element<'a, Message> {
                 text("Kein Konto, keine Telemetrie, kein Hintergrunddienst. Dateien werden nur auf ausdrückliche Nutzeraktion verändert.")
                     .size(14)
                     .color(c.on_surface_variant),
-                button("GitHub-Projekt öffnen")
+                action("GitHub-Projekt öffnen")
                     .on_press(Message::OpenUrl("https://github.com/almighty-atlas/addon-anvil".into()))
-                    .style(button::primary),
+                    .style(primary_button),
             ]
             .spacing(19),
         )
