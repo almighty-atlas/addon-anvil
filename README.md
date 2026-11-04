@@ -1,6 +1,6 @@
 # AddonAnvil
 
-Native Rust/iced addon manager for World of Warcraft **Forever** on Linux (Wayland, Niri, Wine/Lutris/Proton). No Electron, login, daemon, telemetry or ads.
+Native Rust/iced addon manager for World of Warcraft **Forever** on Linux (Wayland, Niri, Wine/Lutris/Proton). Dux Shell-inspired interface with optional matugen color integration; **no Dux runtime requirement**. No Electron, login, daemon, telemetry or ads.
 
 > **Development status:** CI-verified Linux build (format, Clippy, 23 tests and release binary). Real Wayland/Niri and provider end-to-end testing remain outstanding.
 
@@ -28,9 +28,28 @@ Original screenshots captured from the running AddonAnvil 0.1.0 iced binary in a
 - CurseForge: optional user-provided API key, dynamic Forever type, authorized file downloads.
 - WoWInterface: direct URLs and public metadata where available.
 - Asynchronous online searches, update checks, single and batch updates.
-- Native dark German UI, no embedded browser.
+- Native German UI with Dux-inspired semantic surfaces, cards and navigation; optional auto-refreshing matugen color palette. No embedded browser.
 
 **Important limitations:** Full-text WoWInterface Forever search is not claimed. Manual folders cannot yet be linked to a provider. Download progress is reported by stage, not byte percentage. Some provider endpoints must be verified with a working credential/network. Managed folders include SHA-256 fingerprints to detect external changes and block unsafe updates/removal (see docs/security.md).
+
+## Optional Dux Shell colors
+
+AddonAnvil is an **independent** iced application, not a QML plugin. By default it uses a bundled dark palette; it optionally reads `~/.config/addon-anvil/colors.json` (or `$XDG_CONFIG_HOME/addon-anvil/colors.json`). If the file is missing, invalid, or too large, it falls back safely. Theme colors refresh approximately every five seconds.
+
+To generate matching colors with Dux Shell/matugen:
+
+1. Copy `packaging/matugen/addon-anvil.json` to `~/.config/matugen/templates/addon-anvil.json`.
+2. Add an entry to `~/.config/matugen/config.toml` under `[config]` (replace USER with your Linux user):
+
+   ```toml
+   [templates.addon_anvil]
+   input_path = '/home/USER/.config/matugen/templates/addon-anvil.json'
+   output_path = '/home/USER/.config/addon-anvil/colors.json'
+   ```
+
+3. Change your Dux wallpaper or theme to regenerate colors. Ensure `~/.config/addon-anvil/` exists before matugen writes the file.
+
+Full guidance and source links: [Dux-inspired design system](docs/design-system.md).
 
 ## CachyOS / Arch build
 
@@ -110,6 +129,6 @@ Unexpected power loss can leave hidden .addon-anvil-stage-* backup directories i
 
 Tests use temporary local fixtures, do not touch a real game installation and need no personal API key. CI runs in a headless GitHub Actions Linux runner. The GUI must still be launched and visually inspected under Wayland before release.
 
-Docs: [Architecture](docs/architecture.md), [Providers](docs/providers.md), [Security](docs/security.md).
+Docs: [Architecture](docs/architecture.md), [Providers](docs/providers.md), [Security](docs/security.md), [Design System](docs/design-system.md).
 
 The implementation is original; references include iced, Warcraft Wiki TOC format, CurseForge API, AddonForge and Lightforge. MIT license (LICENSE).
