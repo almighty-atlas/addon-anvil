@@ -16,6 +16,10 @@ permissions:
   contents: write
   actions: read
 
+concurrency:
+  group: addon-anvil-capture-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   capture:
     if: github.repository == 'almighty-atlas/addon-anvil'
