@@ -2,7 +2,7 @@
 
 Native Rust/iced addon manager for World of Warcraft **Forever** on Linux (Wayland, Niri, Wine/Lutris/Proton). Dux Shell-inspired interface with optional matugen color integration; **no Dux runtime requirement**. No Electron, login, daemon, telemetry or ads.
 
-> **Development status:** CI-verified Linux build (format, Clippy, 26 tests and release binary). Real Wayland/Niri and provider end-to-end testing remain outstanding.
+> **Development status:** CI-verified Linux build (format, Clippy, 30 tests and release binary). Real Wayland/Niri and provider end-to-end testing remain outstanding.
 
 ## Screenshots
 
