@@ -41,11 +41,11 @@ jobs:
           python3 - <<'PYDATA'
           import json
           from pathlib import Path
-          game = Path('/tmp/AddonAnvil-Demo/_forever_')
+          game = Path('/tmp/AddonAnvil-Demo/battlenet/drive_c/Program Files (x86)/World of Warcraft/_forever_')
           game.joinpath('Data').mkdir(parents=True, exist_ok=True)
           root = game.joinpath('Interface/AddOns')
           for folder, title, notes, version in [
-              ('DemoQuest', 'DemoQuest – Aufgaben', 'Eine Beispiel-Erweiterung für die Screenshot-Dokumentation.', '1.4.0'),
+              ('DemoQuest', 'DemoQuest |cFF22B14C[Core]|r – Aufgaben', 'Eine Beispiel-Erweiterung für die Screenshot-Dokumentation.', '1.4.0'),
               ('DemoInventory', 'DemoInventory – Taschen', 'Beispiel für Inventar-Anpassungen.', '2.1.3'),
               ('DemoRaid', 'DemoRaid – Gruppen', 'Beispiel für Gruppen- und Raid-Werkzeuge.', '0.9.7'),
               ('DemoMap', 'DemoMap – Karte', 'Ein Demonstrations-Addon für die Übersicht.', '3.0.0'),
