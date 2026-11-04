@@ -1,5 +1,6 @@
 //! AddonAnvil's native iced shell. All filesystem and network work is delegated
 //! to separate services and run via asynchronous iced Tasks.
+mod design;
 mod ui;
 
 use addon_anvil::config::Paths;
@@ -26,6 +27,7 @@ pub(crate) enum Page {
 #[derive(Debug, Clone)]
 pub(crate) enum Message {
     Navigate(Page),
+    ThemeTick,
     SearchChanged(String),
     LinkChanged(String),
     SourceSelected(ProviderKind),
@@ -191,6 +193,7 @@ impl App {
 
     fn update(&mut self, msg: Message) -> Task<Message> {
         match msg {
+            Message::ThemeTick => Task::none(),
             Message::Navigate(page) => {
                 self.page = page;
                 Task::none()
@@ -727,6 +730,10 @@ fn main() -> iced::Result {
     iced::application(App::boot, App::update, ui::view)
         .title("AddonAnvil — WoW Addon Manager")
         .theme(ui::theme)
+        .subscription(|_| {
+            iced::time::every(std::time::Duration::from_secs(5))
+                .map(|_| Message::ThemeTick)
+        })
         .window_size((1190.0, 760.0))
         .centered()
         .run()
